@@ -144,11 +144,11 @@
         </a>
         @endif
 
-        @if(auth()->user()->isSuperAdmin())
+        <!-- @if(auth()->user()->isSuperAdmin())
         <a href="{{ route('users.index') }}" class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}">
             <i class="bi bi-shield-lock"></i> Users & Roles
         </a>
-        @endif
+        @endif -->
     </div>
 
     <div class="sb-footer">
