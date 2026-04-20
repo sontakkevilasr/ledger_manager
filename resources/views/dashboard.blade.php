@@ -20,7 +20,7 @@
             <div class="stat-icon" style="background:#f0fdf4;"><i class="bi bi-arrow-down-circle" style="color:#059669;"></i></div>
             <div>
                 <div class="stat-label">Total Credit</div>
-                <div class="stat-value" style="color:#059669;font-size:18px;">₹{{ number_format($totalCredit,0) }}</div>
+                <div class="stat-value" style="color:#059669;font-size:18px;">{{ fmt_amount($totalCredit) }}</div>
             </div>
         </div>
     </div>
@@ -29,7 +29,7 @@
             <div class="stat-icon" style="background:#fff5f5;"><i class="bi bi-arrow-up-circle" style="color:#dc2626;"></i></div>
             <div>
                 <div class="stat-label">Total Debit</div>
-                <div class="stat-value" style="color:#dc2626;font-size:18px;">₹{{ number_format($totalDebit,0) }}</div>
+                <div class="stat-value" style="color:#dc2626;font-size:18px;">{{ fmt_amount($totalDebit) }}</div>
             </div>
         </div>
     </div>
@@ -38,7 +38,7 @@
             <div class="stat-icon" style="background:#fffbeb;"><i class="bi bi-wallet2" style="color:#d97706;"></i></div>
             <div>
                 <div class="stat-label">Outstanding</div>
-                <div class="stat-value" style="color:#d97706;font-size:18px;">₹{{ number_format(abs($totalOutstanding),0) }}</div>
+                <div class="stat-value" style="color:#d97706;font-size:18px;">{{ fmt_amount(abs($totalOutstanding)) }}</div>
             </div>
         </div>
     </div>
@@ -47,24 +47,24 @@
 {{-- ── This month mini stats ──────────────────────────────── --}}
 <div class="card mb-4">
     <div class="card-body py-3">
-        <div class="row text-center g-0 divide-x">
+        <div class="row text-center g-0">
             <div class="col">
                 <div style="font-size:11px;color:#6c757d;">This Month Entries</div>
                 <div style="font-size:18px;font-weight:700;">{{ number_format($thisMonth->count ?? 0) }}</div>
             </div>
             <div class="col border-start">
                 <div style="font-size:11px;color:#6c757d;">This Month Credit</div>
-                <div style="font-size:18px;font-weight:700;color:#059669;">₹{{ number_format($thisMonth->credit ?? 0,0) }}</div>
+                <div style="font-size:18px;font-weight:700;color:#059669;">{{ fmt_amount($thisMonth->credit ?? 0) }}</div>
             </div>
             <div class="col border-start">
                 <div style="font-size:11px;color:#6c757d;">This Month Debit</div>
-                <div style="font-size:18px;font-weight:700;color:#dc2626;">₹{{ number_format($thisMonth->debit ?? 0,0) }}</div>
+                <div style="font-size:18px;font-weight:700;color:#dc2626;">{{ fmt_amount($thisMonth->debit ?? 0) }}</div>
             </div>
             <div class="col border-start">
                 <div style="font-size:11px;color:#6c757d;">This Month Net</div>
                 @php $net = ($thisMonth->credit ?? 0) - ($thisMonth->debit ?? 0); @endphp
                 <div style="font-size:18px;font-weight:700;color:{{ $net >= 0 ? '#059669' : '#dc2626' }};">
-                    ₹{{ number_format(abs($net),0) }}
+                    {{ fmt_amount(abs($net)) }}
                 </div>
             </div>
         </div>
@@ -114,7 +114,7 @@
                             </a>
                         </td>
                         <td style="color:#6c757d;">{{ $c->city }}</td>
-                        <td class="text-end bal-neg">₹{{ number_format($c->outstanding,0) }}</td>
+                        <td class="text-end bal-neg">{{ fmt_amount($c->outstanding) }}</td>
                     </tr>
                     @empty
                     <tr><td colspan="3" class="text-center text-muted py-4">No outstanding balances</td></tr>
@@ -149,7 +149,7 @@
                             </span>
                         </td>
                         <td class="text-end {{ $t->type==='Credit' ? 'bal-pos' : 'bal-neg' }}">
-                            ₹{{ number_format($t->credit + $t->debit, 0) }}
+                            {{ fmt_amount($t->credit + $t->debit) }}
                         </td>
                     </tr>
                     @empty
@@ -200,6 +200,13 @@
 
 @push('scripts')
 <script>
+// Divisor for chart display — matches PHP fmt_amount() scaling
+const DIVISOR = {{ scale_divisor() }};
+
+function fmtChart(v) {
+    return '₹' + (v / DIVISOR).toLocaleString('en-IN', { minimumFractionDigits: 0 });
+}
+
 // ── Monthly Bar Chart ─────────────────────────────────────
 const months = @json($monthly->pluck('month'));
 const credits = @json($monthly->pluck('total_credit'));
@@ -210,13 +217,14 @@ new Chart(document.getElementById('monthlyChart'), {
     data: {
         labels: months.map(m => { const d=new Date(m+'-01'); return d.toLocaleString('default',{month:'short',year:'2-digit'}); }),
         datasets: [
-            { label:'Credit', data: credits, backgroundColor:'rgba(5,150,105,.75)', borderRadius:4, borderSkipped:false },
-            { label:'Debit',  data: debits,  backgroundColor:'rgba(220,38,38,.65)',  borderRadius:4, borderSkipped:false },
+            { label:'Credit', data: credits.map(v => v/DIVISOR), backgroundColor:'rgba(5,150,105,.75)', borderRadius:4, borderSkipped:false },
+            { label:'Debit',  data: debits.map(v  => v/DIVISOR), backgroundColor:'rgba(220,38,38,.65)',  borderRadius:4, borderSkipped:false },
         ]
     },
     options: {
-        responsive:true, plugins:{ legend:{ position:'top', labels:{ font:{size:12}, boxWidth:12 } } },
-        scales:{ y:{ beginAtZero:true, ticks:{ callback: v => '₹'+Number(v).toLocaleString('en-IN') } } }
+        responsive: true,
+        plugins: { legend: { position:'top', labels:{ font:{size:12}, boxWidth:12 } } },
+        scales: { y: { beginAtZero:true, ticks:{ callback: v => fmtChart(v * DIVISOR) } } }
     }
 });
 
@@ -228,14 +236,17 @@ new Chart(document.getElementById('cityChart'), {
     type: 'doughnut',
     data: {
         labels: cities,
-        datasets:[{ data: outst,
-            backgroundColor:['#3b5bdb','#059669','#d97706','#dc2626','#7c3aed','#0891b2','#db2777','#65a30d'],
+        datasets: [{ data: outst.map(v => v/DIVISOR),
+            backgroundColor: ['#3b5bdb','#059669','#d97706','#dc2626','#7c3aed','#0891b2','#db2777','#65a30d'],
             borderWidth:2, borderColor:'#fff'
         }]
     },
     options: {
-        responsive:true, cutout:'65%',
-        plugins:{ legend:{ position:'bottom', labels:{ font:{size:11}, boxWidth:10, padding:8 } } }
+        responsive: true, cutout: '65%',
+        plugins: {
+            legend: { position:'bottom', labels:{ font:{size:11}, boxWidth:10, padding:8 } },
+            tooltip: { callbacks: { label: ctx => ' ' + fmtChart(ctx.raw * DIVISOR) } }
+        }
     }
 });
 </script>

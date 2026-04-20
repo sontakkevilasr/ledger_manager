@@ -17,11 +17,16 @@
                         <h5 class="mb-0 fw-bold">{{ $customer->customer_name }}</h5>
                         <div style="font-size:12px;color:#6c757d;">
                             @if($customer->mobile)<i class="bi bi-phone me-1"></i>{{ $customer->mobile }}&nbsp;@endif
-                            @if($customer->city)<i class="bi bi-geo-alt me-1"></i>{{ $customer->city }} 
-                            @if($customer->state), {{ $customer->state }}
-                            @endif
-                            @endif
+                            @if($customer->city)<i class="bi bi-geo-alt me-1"></i>{{ $customer->city }}
+			    @if($customer->state), {{ $customer->state }}
+			    @endif
+			    @endif
                         </div>
+                        @if($customer->description)
+                        <div style="font-size:12px;color:#6c757d;margin-top:3px;max-width:340px;">
+                            <i class="bi bi-sticky me-1"></i>{{ $customer->description }}
+                        </div>
+                        @endif
                         <span class="badge {{ $customer->is_active ? 'badge-active' : 'badge-inactive' }} mt-1">
                             {{ $customer->is_active ? 'Active' : 'Inactive' }}
                         </span>
@@ -39,7 +44,7 @@
                         @if($customer->opening_balance > 0)
                             <div class="fw-bold" style="font-size:15px;"
                                 class="{{ $customer->opening_balance_type === 'Dr' ? 'bal-neg' : 'bal-pos' }}">
-                                ₹{{ number_format($customer->opening_balance, 2) }}
+                                {{ fmt_amount($customer->opening_balance) }}
                             </div>
                             <div style="font-size:10px;"
                                 class="{{ $customer->opening_balance_type === 'Dr' ? 'text-danger' : 'text-success' }}">
@@ -55,7 +60,7 @@
                     <div class="col-3">
                         <div style="font-size:10px;color:#6c757d;text-transform:uppercase;letter-spacing:.5px;">Credit</div>
                         <div class="fw-bold bal-pos" style="font-size:15px;">
-                            ₹{{ number_format($customer->total_credit, 2) }}
+                            {{ fmt_amount($customer->total_credit) }}
                         </div>
                         <div style="font-size:10px;color:#059669;">Received</div>
                     </div>
@@ -64,7 +69,7 @@
                     <div class="col-3">
                         <div style="font-size:10px;color:#6c757d;text-transform:uppercase;letter-spacing:.5px;">Debit</div>
                         <div class="fw-bold bal-neg" style="font-size:15px;">
-                            ₹{{ number_format($customer->total_debit, 2) }}
+                            {{ fmt_amount($customer->total_debit) }}
                         </div>
                         <div style="font-size:10px;color:#dc2626;">Billed</div>
                     </div>
@@ -75,7 +80,7 @@
                         @php $tb = $trueBalance; @endphp
                         <div class="fw-bold" style="font-size:15px;"
                              style="{{ $tb > 0.01 ? 'color:#dc2626' : ($tb < -0.01 ? 'color:#059669' : 'color:#6b7280') }}">
-                            ₹{{ number_format(abs($tb), 2) }}
+                            {{ fmt_amount(abs($tb)) }}
                         </div>
                         <div style="font-size:10px;"
                              class="{{ $tb > 0.01 ? 'text-danger' : ($tb < -0.01 ? 'text-success' : 'text-muted') }}">
@@ -172,20 +177,20 @@
                 <td>—</td>
                 <td class="text-end">
                     @if($balanceBroughtForward < -0.01)
-                    <span class="bal-pos">₹{{ number_format(abs($balanceBroughtForward), 2) }}</span>
+                    <span class="bal-pos">{{ fmt_amount(abs($balanceBroughtForward)) }}</span>
                     @else —
                     @endif
                 </td>
                 <td class="text-end">
                     @if($balanceBroughtForward > 0.01)
-                    <span class="bal-neg">₹{{ number_format(abs($balanceBroughtForward), 2) }}</span>
+                    <span class="bal-neg">{{ fmt_amount(abs($balanceBroughtForward)) }}</span>
                     @else —
                     @endif
                 </td>
                 <td class="text-end fw-bold">
                     @php $bbf = $balanceBroughtForward; @endphp
                     <span class="{{ $bbf > 0.01 ? 'bal-neg' : ($bbf < -0.01 ? 'bal-pos' : 'bal-zero') }}">
-                        ₹{{ number_format(abs($bbf), 2) }}
+                        {{ fmt_amount(abs($bbf)) }}
                     </span>
                     <div style="font-size:10px;" class="{{ $bbf > 0.01 ? 'text-danger' : ($bbf < -0.01 ? 'text-success' : 'text-muted') }}">
                         {{ $bbf > 0.01 ? 'Dr' : ($bbf < -0.01 ? 'Cr' : 'Nil') }}
@@ -214,20 +219,20 @@
                 </td>
                 <td class="text-end">
                     @if($row['credit'] > 0)
-                        <span class="bal-pos">₹{{ number_format($row['credit'], 2) }}</span>
+                        <span class="bal-pos">{{ fmt_amount($row['credit']) }}</span>
                     @else —
                     @endif
                 </td>
                 <td class="text-end">
                     @if($row['debit'] > 0)
-                        <span class="bal-neg">₹{{ number_format($row['debit'], 2) }}</span>
+                        <span class="bal-neg">{{ fmt_amount($row['debit']) }}</span>
                     @else —
                     @endif
                 </td>
                 <td class="text-end fw-bold">
                     @php $rb = $row['running_balance']; @endphp
                     <span class="{{ $rb > 0.01 ? 'bal-neg' : ($rb < -0.01 ? 'bal-pos' : 'bal-zero') }}">
-                        ₹{{ number_format(abs($rb), 2) }}
+                        {{ fmt_amount(abs($rb)) }}
                     </span>
                     <div style="font-size:10px;"
                          class="{{ $rb > 0.01 ? 'text-danger' : ($rb < -0.01 ? 'text-success' : 'text-muted') }}">
@@ -261,8 +266,8 @@
             <tfoot style="background:#f9fafb;">
                 <tr>
                     <td colspan="4" class="text-end fw-bold" style="font-size:12px;">Period Total</td>
-                    <td class="text-end fw-bold bal-pos">₹{{ number_format($totalCredit, 2) }}</td>
-                    <td class="text-end fw-bold bal-neg">₹{{ number_format($totalDebit, 2) }}</td>
+                    <td class="text-end fw-bold bal-pos">{{ fmt_amount($totalCredit) }}</td>
+                    <td class="text-end fw-bold bal-neg">{{ fmt_amount($totalDebit) }}</td>
                     <td class="text-end"></td>
                     <td></td>
                 </tr>
@@ -273,7 +278,7 @@
                         @php $cb = $closingBalance; @endphp
                         <span class="{{ $cb > 0.01 ? 'bal-neg' : ($cb < -0.01 ? 'bal-pos' : 'bal-zero') }}"
                               style="font-size:14px;">
-                            ₹{{ number_format(abs($cb), 2) }}
+                            {{ fmt_amount(abs($cb)) }}
                         </span>
                         <div style="font-size:10px;"
                              class="{{ $cb > 0.01 ? 'text-danger' : ($cb < -0.01 ? 'text-success' : 'text-muted') }}">

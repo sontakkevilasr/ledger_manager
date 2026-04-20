@@ -47,15 +47,29 @@ class TransactionController extends Controller
             $query->where('agent_id', $agentId);
         }
 
+        // Filter by description
+        $search = trim($request->get('search', ''));
+        if ($search !== '') {
+            $query->where('description', 'like', '%' . $search . '%');
+        }
+
+        // Filter by amount
+        $amount = $request->get('amount');
+        if ($amount !== null && $amount !== '') {
+            $query->where(function ($q) use ($amount) {
+                $q->where('credit', $amount)->orWhere('debit', $amount);
+            });
+        }
+
         $transactions = $query->paginate(30)->withQueryString();
 
         // ── Summary cards — MUST apply ALL the same filters as $query ──────
-        // Previously agent_id was missing here, causing cards to show
-        // totals for all transactions even when filtered by agent.
         $summary = Transaction::when($customerId, fn($q) => $q->where('customer_id', $customerId))
             ->when($type,              fn($q) => $q->where('type', ucfirst($type)))
             ->when($from && $to,       fn($q) => $q->dateRange($from, $to))
             ->when($agentId ?? null,   fn($q) => $q->where('agent_id', $agentId))
+            ->when($search !== '',     fn($q) => $q->where('description', 'like', '%' . $search . '%'))
+            ->when($amount !== null && $amount !== '', fn($q) => $q->where(fn($q2) => $q2->where('credit', $amount)->orWhere('debit', $amount)))
             ->selectRaw('SUM(credit) as total_credit, SUM(debit) as total_debit, COUNT(*) as total_count')
             ->first();
 

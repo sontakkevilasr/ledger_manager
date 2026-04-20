@@ -46,13 +46,13 @@
     <div class="col-6 col-md-3">
         <div class="stat-card text-center">
             <div class="stat-label">Total Credit</div>
-            <div class="stat-value" style="font-size:20px;color:#059669;">₹{{ number_format($summary['total_credit'],0) }}</div>
+            <div class="stat-value" style="font-size:20px;color:#059669;">{{ fmt_amount($summary['total_credit']) }}</div>
         </div>
     </div>
     <div class="col-6 col-md-3">
         <div class="stat-card text-center">
             <div class="stat-label">Total Debit</div>
-            <div class="stat-value" style="font-size:20px;color:#dc2626;">₹{{ number_format($summary['total_debit'],0) }}</div>
+            <div class="stat-value" style="font-size:20px;color:#dc2626;">{{ fmt_amount($summary['total_debit']) }}</div>
         </div>
     </div>
     <div class="col-6 col-md-3">
@@ -60,7 +60,7 @@
             <div class="stat-label">Net Balance</div>
             @php $net = $summary['total_balance']; @endphp
             <div class="stat-value" style="font-size:20px;" class="{{ $net >= 0 ? 'bal-pos' : 'bal-neg' }}">
-                ₹{{ number_format(abs($net),0) }}
+                {{ fmt_amount(abs($net)) }}
             </div>
         </div>
     </div>
@@ -109,12 +109,12 @@
                 </td>
                 <td style="font-size:12px;color:#6c757d;">{{ $row->city ?? '—' }}</td>
                 <td style="font-size:12px;">{{ $row->mobile ?? '—' }}</td>
-                <td class="text-end bal-pos">₹{{ number_format($row->credit, 2) }}</td>
-                <td class="text-end bal-neg">₹{{ number_format($row->debit, 2) }}</td>
+                <td class="text-end bal-pos">{{ fmt_amount($row->credit) }}</td>
+                <td class="text-end bal-neg">{{ fmt_amount($row->debit) }}</td>
                 <td class="text-end">
                     @php $bal = $row->balance; @endphp
                     <span class="fw-bold {{ $bal > 0.01 ? 'bal-pos' : ($bal < -0.01 ? 'bal-neg' : 'bal-zero') }}">
-                        ₹{{ number_format(abs($bal), 2) }}
+                        {{ fmt_amount(abs($bal)) }}
                     </span>
                     <div style="font-size:10px;color:#6c757d;">
                         {{ $bal > 0.01 ? 'To Collect' : ($bal < -0.01 ? 'To Pay' : 'Settled') }}
@@ -132,11 +132,11 @@
             <tfoot style="background:#f9fafb;font-weight:600;">
                 <tr>
                     <td colspan="4" class="text-end" style="font-size:13px;">Grand Total</td>
-                    <td class="text-end bal-pos">₹{{ number_format($summary['total_credit'], 2) }}</td>
-                    <td class="text-end bal-neg">₹{{ number_format($summary['total_debit'], 2) }}</td>
+                    <td class="text-end bal-pos">{{ fmt_amount($summary['total_credit']) }}</td>
+                    <td class="text-end bal-neg">{{ fmt_amount($summary['total_debit']) }}</td>
                     <td class="text-end">
                         <span class="{{ $summary['total_balance'] >= 0 ? 'bal-pos' : 'bal-neg' }}">
-                            ₹{{ number_format(abs($summary['total_balance']), 2) }}
+                            {{ fmt_amount(abs($summary['total_balance'])) }}
                         </span>
                     </td>
                     <td></td>

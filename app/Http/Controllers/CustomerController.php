@@ -76,6 +76,7 @@ class CustomerController extends Controller
             'opening_balance_type' => 'required|in:Dr,Cr',
             'registered_on'        => 'nullable|date',
             'is_active'            => 'nullable|boolean',
+            'description'          => 'nullable|string',
         ]);
 
         $data['customer_name']        = strtoupper(trim($data['customer_name']));
@@ -190,6 +191,7 @@ class CustomerController extends Controller
             'opening_balance_type' => 'required|in:Dr,Cr',
             'registered_on'        => 'nullable|date',
             'is_active'            => 'nullable|boolean',
+            'description'          => 'nullable|string',
         ]);
 
         $data['customer_name'] = strtoupper(trim($data['customer_name']));

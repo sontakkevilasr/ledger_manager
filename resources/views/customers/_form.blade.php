@@ -60,9 +60,25 @@
     {{-- State --}}
     <div class="col-md-4">
         <label class="form-label fw-500">State</label>
-        <input type="text" name="state" class="form-control"
-            value="{{ old('state', $customer->state ?? '') }}"
-            placeholder="e.g. Maharashtra">
+        @php $selectedState = trim(old('state', $customer->state ?? '')) @endphp
+        <select name="state" class="form-select @error('state') is-invalid @enderror">
+            <option value="">— Select State —</option>
+            @foreach ([
+                'Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chhattisgarh',
+                'Goa','Gujarat','Haryana','Himachal Pradesh','Jharkhand','Karnataka',
+                'Kerala','Madhya Pradesh','Maharashtra','Manipur','Meghalaya','Mizoram',
+                'Nagaland','Odisha','Punjab','Rajasthan','Sikkim','Tamil Nadu','Telangana',
+                'Tripura','Uttar Pradesh','Uttarakhand','West Bengal',
+                'Andaman and Nicobar Islands','Chandigarh',
+                'Dadra and Nagar Haveli and Daman and Diu','Delhi',
+                'Jammu and Kashmir','Ladakh','Lakshadweep','Puducherry',
+            ] as $state)
+                <option value="{{ $state }}" {{ strcasecmp($selectedState, $state) === 0 ? 'selected' : '' }}>
+                    {{ $state }}
+                </option>
+            @endforeach
+        </select>
+        @error('state')<div class="invalid-feedback">{{ $message }}</div>@enderror
     </div>
 
     {{-- ZIP --}}
@@ -71,6 +87,15 @@
         <input type="text" name="zip_code" class="form-control"
             value="{{ old('zip_code', $customer->zip_code ?? '') }}"
             placeholder="440001">
+    </div>
+
+
+    {{-- Description / Notes --}}
+    <div class="col-12">
+        <label class="form-label fw-500">Description / Notes</label>
+        <textarea name="description" class="form-control" rows="3"
+            placeholder="e.g. Wholesale plywood dealer, Nagpur. Contact during business hours.">{{ old('description', $customer->description ?? '') }}</textarea>
+        <div class="form-text">Any notes or remarks about this customer. Shown on the customer list and ledger.</div>
     </div>
 
     {{-- ── Opening Balance with Dr / Cr ──────────────────────────────────── --}}
@@ -138,7 +163,9 @@
     function updateHelp() {
         const amt    = parseFloat(amtInput.value) || 0;
         const isDr   = drRadio.checked;
-        const fmtAmt = '₹' + amt.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+        const divisor = {{ scale_divisor() }};
+        const scaled  = amt / divisor;
+        const fmtAmt = '₹' + scaled.toLocaleString('en-IN', { minimumFractionDigits: 2 });
 
         if (amt === 0) {
             helpText.innerHTML = '<span class="text-muted">Enter 0 for new customers with no previous balance.</span>';

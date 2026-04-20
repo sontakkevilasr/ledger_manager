@@ -42,9 +42,22 @@
                 <label class="form-label mb-1" style="font-size:12px;">To</label>
                 <input type="date" name="to" class="form-control form-control-sm" value="{{ request('to') }}">
             </div>
+            <div class="col-md-3">
+                <label class="form-label mb-1" style="font-size:12px;">Description</label>
+                <input type="text" name="search" class="form-control form-control-sm" placeholder="Search description…" value="{{ request('search') }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label mb-1" style="font-size:12px;">Amount</label>
+                <input type="number" name="amount" class="form-control form-control-sm" placeholder="Exact amount" step="0.01" min="0" value="{{ request('amount') }}">
+            </div>
             <div class="col-md-1">
                 <button class="btn btn-primary btn-sm w-100">Filter</button>
             </div>
+            @if(request()->hasAny(['customer_id','type','agent_id','from','to','search','amount']))
+            <div class="col-md-1">
+                <a href="{{ route('transactions.index') }}" class="btn btn-outline-secondary btn-sm w-100">Clear</a>
+            </div>
+            @endif
         </form>
     </div>
 </div>
@@ -60,13 +73,13 @@
     <div class="col-4">
         <div class="card text-center py-2">
             <div style="font-size:11px;color:#6c757d;">Total Credit</div>
-            <div style="font-size:16px;font-weight:700;color:#059669;">₹{{ number_format($summary->total_credit,0) }}</div>
+            <div style="font-size:16px;font-weight:700;color:#059669;">{{ fmt_amount($summary->total_credit) }}</div>
         </div>
     </div>
     <div class="col-4">
         <div class="card text-center py-2">
             <div style="font-size:11px;color:#6c757d;">Total Debit</div>
-            <div style="font-size:16px;font-weight:700;color:#dc2626;">₹{{ number_format($summary->total_debit,0) }}</div>
+            <div style="font-size:16px;font-weight:700;color:#dc2626;">{{ fmt_amount($summary->total_debit) }}</div>
         </div>
     </div>
 </div>
@@ -83,7 +96,7 @@
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
-        <table class="table table-hover mb-0">
+        <table class="table mb-0">
             <thead>
                 <tr>
                     <th>Date</th>
@@ -100,7 +113,7 @@
             </thead>
             <tbody>
             @forelse($transactions as $t)
-            <tr>
+            <tr class="{{ $t->type === 'Credit' ? 'tr-credit' : 'tr-debit' }}">
                 <td style="white-space:nowrap;font-size:12px;">{{ \Carbon\Carbon::parse($t->transaction_date)->format('d M Y') }}</td>
                 <td>
                     <a href="{{ route('customers.show',$t->customer_id) }}" class="text-decoration-none" style="font-size:13px;">
@@ -118,11 +131,11 @@
                     </span>
                 </td>
                 <td class="text-end">
-                    @if($t->credit > 0)<span class="bal-pos">₹{{ number_format($t->credit,2) }}</span>
+                    @if($t->credit > 0)<span class="bal-pos">{{ fmt_amount($t->credit) }}</span>
                     @else <span class="text-muted">—</span>@endif
                 </td>
                 <td class="text-end">
-                    @if($t->debit > 0)<span class="bal-neg">₹{{ number_format($t->debit,2) }}</span>
+                    @if($t->debit > 0)<span class="bal-neg">{{ fmt_amount($t->debit) }}</span>
                     @else <span class="text-muted">—</span>@endif
                 </td>
                 <td style="font-size:11px;color:#6c757d;">{{ $t->createdBy?->name ?? 'Import' }}</td>

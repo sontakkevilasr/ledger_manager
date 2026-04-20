@@ -154,7 +154,9 @@ document.getElementById('customer-select').addEventListener('change', function()
             const el  = document.getElementById('balance-display');
             const balEl = document.getElementById('current-balance');
             el.style.display = 'block';
-            const fmt = '₹' + Math.abs(bal).toLocaleString('en-IN', {minimumFractionDigits:2});
+            const divisor = {{ scale_divisor() }};
+            const scaled  = Math.abs(bal) / divisor;
+            const fmt = '₹' + scaled.toLocaleString('en-IN', {minimumFractionDigits:2});
             balEl.textContent = fmt + (bal > 0 ? ' (to collect)' : bal < 0 ? ' (to pay)' : ' (settled)');
             balEl.style.color = bal > 0 ? '#059669' : bal < 0 ? '#dc2626' : '#6b7280';
         });

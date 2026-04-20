@@ -208,7 +208,7 @@ class ReportController extends Controller
     }
 
     // ── City-wise report ──────────────────────────────────────
-    public function cityWise(Request $request)
+    public function cityWise_bkp(Request $request)
     {
         $this->checkPermission('reports.view');
 
@@ -253,6 +253,74 @@ class ReportController extends Controller
                         ELSE -customers.opening_balance
                     END
                     + COALESCE(txn.net, 0)
+                ) AS outstanding
+            ")
+            ->groupBy('customers.city', 'customers.state')
+            ->orderByDesc('outstanding')
+            ->get();
+
+        ActivityLogger::log('viewed', 'reports', description: 'Viewed city-wise report');
+
+        return view('reports.city-wise', compact('results'));
+    }
+    
+        public function cityWise(Request $request)
+    {
+        $this->checkPermission('reports.view');
+
+        // ── MUST use the same formula as Dashboard city-wise ──────────────
+        //
+        // Three fixes vs old code:
+        //
+        // 1. opening_balance_signed must be included
+        //    Old: SUM(debit) - SUM(credit)              ← wrong, misses opening
+        //    New: opening_signed + SUM(debit) - SUM(credit) ← correct
+        //
+        // 2. Use correlated subquery (not INNER JOIN) so customers with
+        //    zero transactions but a non-zero opening balance are included
+        //    Old: INNER JOIN transactions ← excludes no-transaction customers
+        //    New: correlated subquery with COALESCE(..., 0) ← includes all
+        //
+        // 3. Respect opening_balance_type (Dr / Cr)
+        //    Old: always added opening_balance
+        //    New: CASE WHEN Dr THEN +amount ELSE -amount END
+        //
+        // outstanding per city = SUM across all city customers of:
+        //   ( signed opening balance ) + ( net of their transactions )
+        // Positive = Dr (city owes us overall)  → "To Collect"
+        // Negative = Cr (we owe city overall)   → "To Pay"
+
+        $results = DB::table('customers')
+            ->where('customers.is_active', true)
+            ->select('customers.city', 'customers.state')
+            ->selectRaw('COUNT(customers.id) as customer_count')
+            ->selectRaw("
+                COALESCE(SUM(
+                    (SELECT SUM(t.credit) FROM transactions t
+                     WHERE t.customer_id = customers.id AND t.deleted_at IS NULL)
+                ), 0) AS total_credit
+            ")
+            ->selectRaw("
+                COALESCE(SUM(
+                    (SELECT SUM(t.debit) FROM transactions t
+                     WHERE t.customer_id = customers.id AND t.deleted_at IS NULL)
+                ), 0) AS total_debit
+            ")
+            ->selectRaw("
+                SUM(
+                    (
+                        CASE WHEN customers.opening_balance_type = 'Dr'
+                            THEN  customers.opening_balance
+                            ELSE -customers.opening_balance
+                        END
+                    )
+                    +
+                    COALESCE((
+                        SELECT SUM(t.debit) - SUM(t.credit)
+                        FROM transactions t
+                        WHERE t.customer_id = customers.id
+                          AND t.deleted_at IS NULL
+                    ), 0)
                 ) AS outstanding
             ")
             ->groupBy('customers.city', 'customers.state')
@@ -403,6 +471,8 @@ class ReportController extends Controller
             fwrite($handle, "\xEF\xBB\xBF");
 
             // ── Report header rows ──────────────────────────────
+            $scaleOn = config('app.scale_amounts', false);
+
             fputcsv($handle, ['Aman Traders — Balance Summary Report']);
             fputcsv($handle, ['Generated on', now()->format('d M Y, h:i A')]);
             fputcsv($handle, ['Filter', match($filter) {
@@ -411,9 +481,17 @@ class ReportController extends Controller
                 'zero'   => 'Settled (Zero)',
                 default  => 'All Customers',
             }]);
+
+            // Show note in Excel if amounts are scaled
+            if ($scaleOn) {
+                fputcsv($handle, ['Note', 'Amounts divided by 100 as per display settings (Scale Amount Display is ON)']);
+            }
+
             fputcsv($handle, []); // blank row
 
             // ── Column headers ──────────────────────────────────
+            $amtLabel = $scaleOn ? ' (÷100)' : '';
+
             fputcsv($handle, [
                 'Sr#',
                 'Customer ID',
@@ -422,13 +500,19 @@ class ReportController extends Controller
                 'State',
                 'Mobile',
                 'Phone',
-                'Opening Balance',
+                'Opening Balance' . $amtLabel,
                 'Opening Type',
-                'Total Credit',
-                'Total Debit',
-                'Net Balance',
+                'Total Credit' . $amtLabel,
+                'Total Debit' . $amtLabel,
+                'Net Balance' . $amtLabel,
                 'Balance Direction',
             ]);
+
+            // ── Helper: scale a value for export ────────────────
+            $scaleVal = function (float $val) use ($scaleOn): string {
+                $v = $scaleOn ? $val / 100 : $val;
+                return number_format($v, 2, '.', '');
+            };
 
             // ── Data rows ───────────────────────────────────────
             $grandCredit  = 0;
@@ -445,15 +529,15 @@ class ReportController extends Controller
                     $i + 1,
                     $c->id,
                     $c->customer_name,
-                    $c->city ?? '',
-                    $c->state ?? '',
-                    $c->mobile ?? '',
-                    $c->phone ?? '',
-                    number_format((float) $c->opening_balance, 2, '.', ''),
+                    $c->city    ?? '',
+                    $c->state   ?? '',
+                    $c->mobile  ?? '',
+                    $c->phone   ?? '',
+                    $scaleVal((float) $c->opening_balance),
                     $c->opening_balance_type,
-                    number_format((float) $c->total_credit, 2, '.', ''),
-                    number_format((float) $c->total_debit,  2, '.', ''),
-                    number_format(abs($bal), 2, '.', ''),
+                    $scaleVal((float) $c->total_credit),
+                    $scaleVal((float) $c->total_debit),
+                    $scaleVal(abs($bal)),
                     $dir,
                 ]);
 
@@ -469,9 +553,9 @@ class ReportController extends Controller
                 '',
                 'TOTAL (' . $customers->count() . ' customers)',
                 '', '', '', '', '', '',
-                number_format($grandCredit, 2, '.', ''),
-                number_format($grandDebit,  2, '.', ''),
-                number_format(abs($grandNet), 2, '.', ''),
+                $scaleVal($grandCredit),
+                $scaleVal($grandDebit),
+                $scaleVal(abs($grandNet)),
                 $grandNet > 0.01  ? 'Dr - To Collect'
                     : ($grandNet < -0.01 ? 'Cr - To Pay' : 'Settled'),
             ]);

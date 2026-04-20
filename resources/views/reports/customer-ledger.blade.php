@@ -74,19 +74,19 @@
     <div class="col-4">
         <div class="stat-card text-center py-3">
             <div class="stat-label">Opening Balance</div>
-            <div class="stat-value" style="font-size:18px;">₹{{ number_format($customer->opening_balance, 2) }}</div>
+            <div class="stat-value" style="font-size:18px;">{{ fmt_amount($customer->opening_balance) }}</div>
         </div>
     </div>
     <div class="col-4">
         <div class="stat-card text-center py-3">
             <div class="stat-label">Total Credit</div>
-            <div class="stat-value" style="font-size:18px;color:#059669;">₹{{ number_format($ledger->sum('credit'), 2) }}</div>
+            <div class="stat-value" style="font-size:18px;color:#059669;">{{ fmt_amount($ledger->sum('credit')) }}</div>
         </div>
     </div>
     <div class="col-4">
         <div class="stat-card text-center py-3">
             <div class="stat-label">Total Debit</div>
-            <div class="stat-value" style="font-size:18px;color:#dc2626;">₹{{ number_format($ledger->sum('debit'), 2) }}</div>
+            <div class="stat-value" style="font-size:18px;color:#dc2626;">{{ fmt_amount($ledger->sum('debit')) }}</div>
         </div>
     </div>
 </div>
@@ -97,7 +97,7 @@
         <span><i class="bi bi-journal-text me-2"></i>Account Statement — {{ $ledger->count() }} entries</span>
         <span style="font-size:12px;color:#6c757d;">Closing Balance:
             <strong class="{{ $runningBalance > 0 ? 'bal-pos' : ($runningBalance < 0 ? 'bal-neg' : 'bal-zero') }}">
-                ₹{{ number_format(abs($runningBalance), 2) }}
+                {{ fmt_amount(abs($runningBalance)) }}
             </strong>
         </span>
     </div>
@@ -125,7 +125,7 @@
                 <td>—</td><td>—</td>
                 <td class="text-end">—</td>
                 <td class="text-end">—</td>
-                <td class="text-end fw-bold">₹{{ number_format($customer->opening_balance, 2) }}</td>
+                <td class="text-end fw-bold">{{ fmt_amount($customer->opening_balance) }}</td>
             </tr>
             @endif
 
@@ -148,21 +148,21 @@
                 </td>
                 <td class="text-end">
                     @if($row['credit'] > 0)
-                        <span class="bal-pos">₹{{ number_format($row['credit'], 2) }}</span>
+                        <span class="bal-pos">{{ fmt_amount($row['credit']) }}</span>
                     @else
                         <span class="text-muted">—</span>
                     @endif
                 </td>
                 <td class="text-end">
                     @if($row['debit'] > 0)
-                        <span class="bal-neg">₹{{ number_format($row['debit'], 2) }}</span>
+                        <span class="bal-neg">{{ fmt_amount($row['debit']) }}</span>
                     @else
                         <span class="text-muted">—</span>
                     @endif
                 </td>
                 <td class="text-end fw-bold">
                     <span class="{{ $row['running_balance'] > 0.01 ? 'bal-pos' : ($row['running_balance'] < -0.01 ? 'bal-neg' : 'bal-zero') }}">
-                        ₹{{ number_format(abs($row['running_balance']), 2) }}
+                        {{ fmt_amount(abs($row['running_balance'])) }}
                     </span>
                     <div style="font-size:9px;color:#9ca3af;">
                         {{ $row['running_balance'] > 0.01 ? 'Dr' : ($row['running_balance'] < -0.01 ? 'Cr' : '') }}
@@ -183,11 +183,11 @@
             <tfoot style="background:#f9fafb;">
                 <tr>
                     <td colspan="4" class="text-end fw-bold" style="font-size:13px;">Closing Balance</td>
-                    <td class="text-end fw-bold bal-pos">₹{{ number_format($ledger->sum('credit'), 2) }}</td>
-                    <td class="text-end fw-bold bal-neg">₹{{ number_format($ledger->sum('debit'), 2) }}</td>
+                    <td class="text-end fw-bold bal-pos">{{ fmt_amount($ledger->sum('credit')) }}</td>
+                    <td class="text-end fw-bold bal-neg">{{ fmt_amount($ledger->sum('debit')) }}</td>
                     <td class="text-end fw-bold">
                         <span class="{{ $runningBalance > 0.01 ? 'bal-pos' : ($runningBalance < -0.01 ? 'bal-neg' : 'bal-zero') }}">
-                            ₹{{ number_format(abs($runningBalance), 2) }}
+                            {{ fmt_amount(abs($runningBalance)) }}
                         </span>
                     </td>
                 </tr>

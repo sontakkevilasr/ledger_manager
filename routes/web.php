@@ -9,6 +9,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\AgentController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SettingsController;
 
 // ── Public routes ─────────────────────────────────────────────────────────
 Route::middleware('guest')->group(function () {
@@ -58,6 +59,10 @@ Route::middleware('auth')->group(function () {
 
     // ── Users (super_admin only) ──────────────────────────────
     Route::resource('users', UserController::class)->except(['show']);
+
+    // ── Settings (super_admin only) ───────────────────────────
+    Route::get('settings',  [SettingsController::class, 'index'])->name('settings');
+    Route::put('settings',  [SettingsController::class, 'update'])->name('settings.update');
 
     // ── Profile ───────────────────────────────────────────────
     Route::get('profile',                  [ProfileController::class, 'show'])->name('profile');
