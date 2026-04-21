@@ -290,37 +290,25 @@ class ReportController extends Controller
         // Positive = Dr (city owes us overall)  → "To Collect"
         // Negative = Cr (we owe city overall)   → "To Pay"
 
+        $txSub = DB::table('transactions')
+            ->whereNull('deleted_at')
+            ->selectRaw('customer_id, SUM(credit) as total_credit, SUM(debit) as total_debit, SUM(debit) - SUM(credit) as net_debit')
+            ->groupBy('customer_id');
+
         $results = DB::table('customers')
+            ->leftJoinSub($txSub, 't_agg', 't_agg.customer_id', '=', 'customers.id')
             ->where('customers.is_active', true)
             ->select('customers.city', 'customers.state')
             ->selectRaw('COUNT(customers.id) as customer_count')
-            ->selectRaw("
-                COALESCE(SUM(
-                    (SELECT SUM(t.credit) FROM transactions t
-                     WHERE t.customer_id = customers.id AND t.deleted_at IS NULL)
-                ), 0) AS total_credit
-            ")
-            ->selectRaw("
-                COALESCE(SUM(
-                    (SELECT SUM(t.debit) FROM transactions t
-                     WHERE t.customer_id = customers.id AND t.deleted_at IS NULL)
-                ), 0) AS total_debit
-            ")
+            ->selectRaw('COALESCE(SUM(t_agg.total_credit), 0) AS total_credit')
+            ->selectRaw('COALESCE(SUM(t_agg.total_debit), 0) AS total_debit')
             ->selectRaw("
                 SUM(
-                    (
-                        CASE WHEN customers.opening_balance_type = 'Dr'
-                            THEN  customers.opening_balance
-                            ELSE -customers.opening_balance
-                        END
-                    )
-                    +
-                    COALESCE((
-                        SELECT SUM(t.debit) - SUM(t.credit)
-                        FROM transactions t
-                        WHERE t.customer_id = customers.id
-                          AND t.deleted_at IS NULL
-                    ), 0)
+                    (CASE WHEN customers.opening_balance_type = 'Dr'
+                        THEN  customers.opening_balance
+                        ELSE -customers.opening_balance
+                    END)
+                    + COALESCE(t_agg.net_debit, 0)
                 ) AS outstanding
             ")
             ->groupBy('customers.city', 'customers.state')
