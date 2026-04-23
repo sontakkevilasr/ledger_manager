@@ -18,9 +18,14 @@ class TransactionController extends Controller
     {
         $this->checkPermission('transactions.view');
 
+        $sortBy  = in_array($request->get('sort_by'), ['transaction_date', 'type', 'credit', 'debit'])
+            ? $request->get('sort_by')
+            : 'transaction_date';
+        $sortDir = $request->get('sort_dir') === 'asc' ? 'asc' : 'desc';
+
         $query = Transaction::with(['customer', 'paymentType', 'agent', 'createdBy'])
-            ->orderByDesc('transaction_date')
-            ->orderByDesc('id');
+            ->orderBy($sortBy, $sortDir)
+            ->orderBy('id', $sortDir);
 
         // Filter by customer
         $customerId = $request->get('customer_id');

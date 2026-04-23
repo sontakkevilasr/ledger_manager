@@ -3,6 +3,12 @@
 @section('page-title','All Transactions')
 
 @section('content')
+@php
+    $sortBy  = request('sort_by', 'transaction_date');
+    $sortDir = request('sort_dir', 'desc');
+    $sortUrl  = fn(string $col) => request()->fullUrlWithQuery(['sort_by' => $col, 'sort_dir' => ($sortBy === $col && $sortDir === 'asc') ? 'desc' : 'asc', 'page' => 1]);
+    $sortIcon = fn(string $col) => $sortBy === $col ? ($sortDir === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down') : 'bi-arrow-down-up opacity-25';
+@endphp
 
 {{-- ── Filters ──────────────────────────────────────────────────────────── --}}
 <div class="card mb-3">
@@ -50,6 +56,8 @@
                 <label class="form-label mb-1" style="font-size:12px;">Amount</label>
                 <input type="number" name="amount" class="form-control form-control-sm" placeholder="Exact amount" step="0.01" min="0" value="{{ request('amount') }}">
             </div>
+            <input type="hidden" name="sort_by" value="{{ $sortBy }}">
+            <input type="hidden" name="sort_dir" value="{{ $sortDir }}">
             <div class="col-md-1">
                 <button class="btn btn-primary btn-sm w-100">Filter</button>
             </div>
@@ -99,14 +107,14 @@
         <table class="table mb-0">
             <thead>
                 <tr>
-                    <th>Date</th>
+                    <th><a href="{{ $sortUrl('transaction_date') }}" class="text-decoration-none text-dark">Date <i class="bi {{ $sortIcon('transaction_date') }}"></i></a></th>
                     <th>Customer</th>
                     <th>Description</th>
                     <th>Agent</th>
                     <th>Payment</th>
-                    <th class="text-center">Type</th>
-                    <th class="text-end">Credit</th>
-                    <th class="text-end">Debit</th>
+                    <th class="text-center"><a href="{{ $sortUrl('type') }}" class="text-decoration-none text-dark">Type <i class="bi {{ $sortIcon('type') }}"></i></a></th>
+                    <th class="text-end"><a href="{{ $sortUrl('credit') }}" class="text-decoration-none text-dark">Credit <i class="bi {{ $sortIcon('credit') }}"></i></a></th>
+                    <th class="text-end"><a href="{{ $sortUrl('debit') }}" class="text-decoration-none text-dark">Debit <i class="bi {{ $sortIcon('debit') }}"></i></a></th>
                     <th>By</th>
                     <th></th>
                 </tr>
