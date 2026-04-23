@@ -38,21 +38,20 @@
             <div class="col-md-7">
                 <div class="row g-2 text-center">
 
-                    {{-- Opening Balance --}}
+                    {{-- Opening Balance from is_opening transaction --}}
+                    @php $openingTxn = $customer->transactions()->where('is_opening', true)->whereNull('deleted_at')->first(); @endphp
                     <div class="col-3">
                         <div style="font-size:10px;color:#6c757d;text-transform:uppercase;letter-spacing:.5px;">Opening</div>
-                        @if($customer->opening_balance > 0)
-                            <div class="fw-bold" style="font-size:15px;"
-                                class="{{ $customer->opening_balance_type === 'Dr' ? 'bal-neg' : 'bal-pos' }}">
-                                {{ fmt_amount($customer->opening_balance) }}
+                        @if($openingTxn)
+                            <div class="fw-bold {{ $openingTxn->type === 'Debit' ? 'bal-neg' : 'bal-pos' }}" style="font-size:15px;">
+                                {{ fmt_amount($openingTxn->debit > 0 ? $openingTxn->debit : $openingTxn->credit) }}
                             </div>
-                            <div style="font-size:10px;"
-                                class="{{ $customer->opening_balance_type === 'Dr' ? 'text-danger' : 'text-success' }}">
-                                {{ $customer->opening_balance_type }}
+                            <div style="font-size:10px;" class="{{ $openingTxn->type === 'Debit' ? 'text-danger' : 'text-success' }}">
+                                {{ $openingTxn->type === 'Debit' ? 'Dr' : 'Cr' }}
                             </div>
                         @else
-                            <div class="bal-zero fw-bold" style="font-size:15px;">₹0.00</div>
-                            <div style="font-size:10px;color:#6c757d;">Nil</div>
+                            <div class="bal-zero fw-bold" style="font-size:15px;">Nil</div>
+                            <div style="font-size:10px;color:#6c757d;">No opening</div>
                         @endif
                     </div>
 
@@ -201,11 +200,15 @@
 
             {{-- Transaction rows ─────────────────────────────────────────── --}}
             @forelse($ledger as $row)
-            <tr>
+            <tr class="{{ !empty($row['is_opening']) ? 'table-light' : '' }}"
+                style="{{ !empty($row['is_opening']) ? 'font-style:italic;' : '' }}">
                 <td style="white-space:nowrap;font-size:12px;">
                     {{ \Carbon\Carbon::parse($row['transaction_date'])->format('d M Y') }}
                 </td>
                 <td>
+                    @if(!empty($row['is_opening']))
+                    <span class="badge me-1" style="background:#eff3ff;color:#3b5bdb;font-size:9px;vertical-align:middle;">Opening</span>
+                    @endif
                     {{ $row['description'] ?? '—' }}
                     @if(!empty($row['remark']))
                     <div style="font-size:11px;color:#6c757d;">{{ $row['remark'] }}</div>

@@ -98,46 +98,68 @@
         <div class="form-text">Any notes or remarks about this customer. Shown on the customer list and ledger.</div>
     </div>
 
-    {{-- ── Opening Balance with Dr / Cr ──────────────────────────────────── --}}
+    {{-- ── Opening Balance (stored as a transaction) ───────────────────────── --}}
     <div class="col-12">
-        <label class="form-label fw-500">Opening Balance</label>
+        <div class="card" style="border:1px solid #e5e7eb;border-radius:10px;">
+            <div class="card-body pb-3">
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <i class="bi bi-clock-history text-primary"></i>
+                    <span class="fw-500" style="font-size:14px;">Opening Balance</span>
+                    <span class="badge" style="background:#eff3ff;color:#3b5bdb;font-size:10px;">Stored as ledger entry</span>
+                </div>
 
-        <div class="d-flex gap-2 align-items-stretch">
+                <div class="row g-3">
 
-            {{-- Dr / Cr toggle --}}
-            <div class="btn-group" role="group" style="flex-shrink:0;">
-                <input type="radio" class="btn-check" name="opening_balance_type"
-                    id="ob-dr" value="Dr"
-                    {{ old('opening_balance_type', $customer->opening_balance_type ?? 'Dr') === 'Dr' ? 'checked' : '' }}>
-                <label class="btn btn-outline-danger" for="ob-dr" title="Dr — Customer owes Aman Traders">
-                    Dr
-                </label>
+                    {{-- Amount + Dr/Cr --}}
+                    <div class="col-md-5">
+                        <label class="form-label fw-500" style="font-size:13px;">Amount</label>
+                        <div class="d-flex gap-2">
+                            <div class="btn-group" role="group" style="flex-shrink:0;">
+                                <input type="radio" class="btn-check" name="ob_type" id="ob-dr" value="Dr"
+                                    {{ old('ob_type', isset($openingTransaction) ? ($openingTransaction->type === 'Debit' ? 'Dr' : 'Cr') : 'Dr') === 'Dr' ? 'checked' : '' }}>
+                                <label class="btn btn-outline-danger btn-sm" for="ob-dr">Dr</label>
 
-                <input type="radio" class="btn-check" name="opening_balance_type"
-                    id="ob-cr" value="Cr"
-                    {{ old('opening_balance_type', $customer->opening_balance_type ?? 'Dr') === 'Cr' ? 'checked' : '' }}>
-                <label class="btn btn-outline-success" for="ob-cr" title="Cr — Aman Traders owes customer">
-                    Cr
-                </label>
-            </div>
+                                <input type="radio" class="btn-check" name="ob_type" id="ob-cr" value="Cr"
+                                    {{ old('ob_type', isset($openingTransaction) ? ($openingTransaction->type === 'Debit' ? 'Dr' : 'Cr') : 'Dr') === 'Cr' ? 'checked' : '' }}>
+                                <label class="btn btn-outline-success btn-sm" for="ob-cr">Cr</label>
+                            </div>
+                            <div class="input-group">
+                                <span class="input-group-text">₹</span>
+                                <input type="number" name="ob_amount" id="ob_amount"
+                                    class="form-control @error('ob_amount') is-invalid @enderror"
+                                    step="0.01" min="0"
+                                    value="{{ old('ob_amount', isset($openingTransaction) ? ($openingTransaction->debit > 0 ? $openingTransaction->debit : $openingTransaction->credit) : '') }}"
+                                    placeholder="0">
+                            </div>
+                        </div>
+                        <div id="ob-help" class="form-text mt-1" style="font-size:11px;"></div>
+                    </div>
 
-            {{-- Amount input --}}
-            <div class="input-group flex-grow-1">
-                <span class="input-group-text">₹</span>
-                <input type="number" name="opening_balance"
-                    id="opening_balance"
-                    class="form-control @error('opening_balance') is-invalid @enderror"
-                    step="0.01" min="0"
-                    value="{{ old('opening_balance', $customer->opening_balance ?? 0) }}"
-                    placeholder="0.00">
-                @error('opening_balance')
-                <div class="invalid-feedback">{{ $message }}</div>
-                @enderror
+                    {{-- Date --}}
+                    <div class="col-md-3">
+                        <label class="form-label fw-500" style="font-size:13px;">Date <span class="text-danger">*</span></label>
+                        <input type="date" name="ob_date" class="form-control"
+                            value="{{ old('ob_date', isset($openingTransaction) ? $openingTransaction->transaction_date->format('Y-m-d') : now()->startOfYear()->format('Y-m-d')) }}">
+                        <div class="form-text" style="font-size:11px;">Usually financial year start</div>
+                    </div>
+
+                    {{-- Description --}}
+                    <div class="col-md-4">
+                        <label class="form-label fw-500" style="font-size:13px;">Description</label>
+                        <input type="text" name="ob_description" class="form-control"
+                            value="{{ old('ob_description', isset($openingTransaction) ? $openingTransaction->description : 'Opening Balance') }}"
+                            placeholder="Opening Balance">
+                    </div>
+
+                </div>
+
+                <div class="mt-2" style="font-size:11px;color:#9ca3af;">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Leave amount as 0 if this is a new customer with no previous balance.
+                    This entry will appear in the customer ledger with a special opening balance marker.
+                </div>
             </div>
         </div>
-
-        {{-- Dynamic helper text --}}
-        <div id="ob-help" class="form-text mt-2"></div>
     </div>
 
     {{-- Active Status --}}
@@ -158,38 +180,29 @@
     const drRadio  = document.getElementById('ob-dr');
     const crRadio  = document.getElementById('ob-cr');
     const helpText = document.getElementById('ob-help');
-    const amtInput = document.getElementById('opening_balance');
+    const amtInput = document.getElementById('ob_amount');
 
     function updateHelp() {
-        const amt    = parseFloat(amtInput.value) || 0;
-        const isDr   = drRadio.checked;
-        const divisor = {{ scale_divisor() }};
-        const scaled  = amt / divisor;
-        const fmtAmt = '₹' + scaled.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+        const amt  = parseFloat(amtInput.value) || 0;
+        const isDr = drRadio.checked;
 
         if (amt === 0) {
-            helpText.innerHTML = '<span class="text-muted">Enter 0 for new customers with no previous balance.</span>';
+            helpText.innerHTML = '';
             return;
         }
 
-        if (isDr) {
-            helpText.innerHTML =
-                `<span style="color:#dc2626;">
-                    <strong>Dr ${fmtAmt}</strong> — Customer owes Aman Traders this amount from previous period.
-                    It will be added to their outstanding balance.
-                </span>`;
-        } else {
-            helpText.innerHTML =
-                `<span style="color:#059669;">
-                    <strong>Cr ${fmtAmt}</strong> — Aman Traders owes this amount to the customer from previous period.
-                    It will be deducted from their outstanding balance.
-                </span>`;
-        }
+        const divisor = {{ scale_divisor() }};
+        const scaled  = amt / divisor;
+        const fmtAmt  = '₹' + scaled.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+
+        helpText.innerHTML = isDr
+            ? `<span style="color:#dc2626;"><strong>Dr ${fmtAmt}</strong> — Customer owes Aman Traders</span>`
+            : `<span style="color:#059669;"><strong>Cr ${fmtAmt}</strong> — Aman Traders owes customer</span>`;
     }
 
-    drRadio.addEventListener('change', updateHelp);
-    crRadio.addEventListener('change', updateHelp);
-    amtInput.addEventListener('input', updateHelp);
+    if (drRadio) drRadio.addEventListener('change', updateHelp);
+    if (crRadio) crRadio.addEventListener('change', updateHelp);
+    if (amtInput) amtInput.addEventListener('input', updateHelp);
 
     // Run on page load
     updateHelp();
