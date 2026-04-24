@@ -36,6 +36,7 @@
             </div>
             @endif
         </form>
+
     </div>
 </div>
 
@@ -93,13 +94,26 @@
 
 {{-- ── Ledger Table ─────────────────────────────────────────────────────── --}}
 <div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <span><i class="bi bi-journal-text me-2"></i>Account Statement — {{ $ledger->count() }} entries</span>
-        <span style="font-size:12px;color:#6c757d;">Closing Balance:
-            <strong class="{{ $runningBalance > 0 ? 'bal-pos' : ($runningBalance < 0 ? 'bal-neg' : 'bal-zero') }}">
-                {{ fmt_amount(abs($runningBalance)) }}
-            </strong>
-        </span>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            {{-- Restore badges for hidden columns (no-print) --}}
+            <span id="badge-agent" class="no-print" style="display:none!important;">
+                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:11px;" onclick="showColumn('agent')">
+                    <i class="bi bi-eye-slash me-1"></i>Agent
+                </button>
+            </span>
+            <span id="badge-payment" class="no-print" style="display:none!important;">
+                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:11px;" onclick="showColumn('payment')">
+                    <i class="bi bi-eye-slash me-1"></i>Payment Mode
+                </button>
+            </span>
+            <span style="font-size:12px;color:#6c757d;">Closing Balance:
+                <strong class="{{ $runningBalance > 0 ? 'bal-pos' : ($runningBalance < 0 ? 'bal-neg' : 'bal-zero') }}">
+                    {{ fmt_amount(abs($runningBalance)) }}
+                </strong>
+            </span>
+        </div>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -108,8 +122,12 @@
                 <tr>
                     <th style="width:110px;">Date</th>
                     <th>Description</th>
-                    <th>Agent</th>
-                    <th>Payment Mode</th>
+                    <th class="col-agent" id="th-agent" onclick="hideColumn('agent')" title="Click to hide column" style="cursor:pointer;white-space:nowrap;">
+                        Agent <i class="bi bi-eye no-print" style="font-size:10px;opacity:0.5;"></i>
+                    </th>
+                    <th class="col-payment" id="th-payment" onclick="hideColumn('payment')" title="Click to hide column" style="cursor:pointer;white-space:nowrap;">
+                        Payment Mode <i class="bi bi-eye no-print" style="font-size:10px;opacity:0.5;"></i>
+                    </th>
                     <th class="text-end" style="color:#059669;">Credit</th>
                     <th class="text-end" style="color:#dc2626;">Debit</th>
                     <th class="text-end">Balance</th>
@@ -122,7 +140,8 @@
             <tr style="background:#fffbeb;">
                 <td style="font-size:12px;color:#6c757d;">Opening</td>
                 <td><em style="color:#6c757d;font-size:12px;">Opening / Carry-forward Balance</em></td>
-                <td>—</td><td>—</td>
+                <td class="col-agent">—</td>
+                <td class="col-payment">—</td>
                 <td class="text-end">—</td>
                 <td class="text-end">—</td>
                 <td class="text-end fw-bold">{{ fmt_amount($customer->opening_balance) }}</td>
@@ -140,10 +159,10 @@
                     <span style="font-size:11px;color:#6c757d;"> — {{ $row['remark'] }}</span>
                     @endif
                 </td>
-                <td style="font-size:12px;color:#6c757d;">
+                <td class="col-agent" style="font-size:12px;color:#6c757d;">
                     {{ $row['agent']['name'] ?? '—' }}
                 </td>
-                <td style="font-size:12px;color:#6c757d;">
+                <td class="col-payment" style="font-size:12px;color:#6c757d;">
                     {{ $row['payment_type']['payment_type'] ?? '—' }}
                 </td>
                 <td class="text-end">
@@ -171,7 +190,7 @@
             </tr>
             @empty
             <tr>
-                <td colspan="7" class="text-center py-5 text-muted">
+                <td colspan="7" class="text-center py-5 text-muted" id="empty-row">
                     <i class="bi bi-journal-x display-6 d-block mb-2 opacity-25"></i>
                     No transactions found for this period.
                 </td>
@@ -182,7 +201,7 @@
             @if($ledger->count() > 0)
             <tfoot style="background:#f9fafb;">
                 <tr>
-                    <td colspan="4" class="text-end fw-bold" style="font-size:13px;">Closing Balance</td>
+                    <td id="tfoot-label-colspan" colspan="4" class="text-end fw-bold" style="font-size:13px;">Closing Balance</td>
                     <td class="text-end fw-bold bal-pos">{{ fmt_amount($ledger->sum('credit')) }}</td>
                     <td class="text-end fw-bold bal-neg">{{ fmt_amount($ledger->sum('debit')) }}</td>
                     <td class="text-end fw-bold">
@@ -211,8 +230,15 @@
 
 @push('styles')
 <style>
+#th-agent:hover, #th-payment:hover {
+    background: #f0f4ff;
+    color: #3b5bdb;
+}
+#th-agent:hover .bi-eye, #th-payment:hover .bi-eye {
+    opacity: 1;
+}
 @media print {
-    #sidebar, #topbar, form, .btn { display: none !important; }
+    .no-print, #sidebar, #topbar, form, .btn { display: none !important; }
     #main { margin-left: 0 !important; }
     .page-content { padding: 0 !important; }
     .card { border: 1px solid #dee2e6 !important; box-shadow: none !important; margin-bottom: 12px !important; }
@@ -221,4 +247,37 @@
     .stat-card { border: 1px solid #dee2e6 !important; }
 }
 </style>
+@endpush
+
+@push('scripts')
+<script>
+const colState = { agent: false, payment: false };
+
+function hideColumn(col) {
+    colState[col] = false;
+    const cls = col === 'agent' ? 'col-agent' : 'col-payment';
+    document.querySelectorAll('.' + cls).forEach(el => el.style.display = 'none');
+    document.getElementById('badge-' + col).style.removeProperty('display');
+    updateTfootColspan();
+}
+
+function showColumn(col) {
+    colState[col] = true;
+    const cls = col === 'agent' ? 'col-agent' : 'col-payment';
+    document.querySelectorAll('.' + cls).forEach(el => el.style.display = '');
+    document.getElementById('badge-' + col).style.setProperty('display', 'none', 'important');
+    updateTfootColspan();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    hideColumn('agent');
+    hideColumn('payment');
+});
+
+function updateTfootColspan() {
+    const label = document.getElementById('tfoot-label-colspan');
+    if (!label) return;
+    label.setAttribute('colspan', 2 + (colState.agent ? 1 : 0) + (colState.payment ? 1 : 0));
+}
+</script>
 @endpush
