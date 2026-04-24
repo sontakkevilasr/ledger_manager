@@ -4,8 +4,6 @@
 
 @section('content')
 @php
-    $sortBy  = request('sort_by', 'transaction_date');
-    $sortDir = request('sort_dir', 'desc');
     $sortUrl  = fn(string $col) => request()->fullUrlWithQuery(['sort_by' => $col, 'sort_dir' => ($sortBy === $col && $sortDir === 'asc') ? 'desc' : 'asc', 'page' => 1]);
     $sortIcon = fn(string $col) => $sortBy === $col ? ($sortDir === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down') : 'bi-arrow-down-up opacity-25';
 @endphp
@@ -57,7 +55,6 @@
                 <input type="number" name="amount" class="form-control form-control-sm" placeholder="Exact amount" step="0.01" min="0" value="{{ request('amount') }}">
             </div>
             <input type="hidden" name="sort_by" value="{{ $sortBy }}">
-            <input type="hidden" name="sort_dir" value="{{ $sortDir }}">
             <div class="col-md-1">
                 <button class="btn btn-primary btn-sm w-100">Filter</button>
             </div>
@@ -94,13 +91,30 @@
 
 {{-- ── Table ────────────────────────────────────────────────────────────── --}}
 <div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <span><i class="bi bi-arrow-left-right me-2"></i>{{ $transactions->total() }} Transactions</span>
-        @if(auth()->user()->hasPermission('transactions.create') || auth()->user()->isSuperAdmin())
-        <a href="{{ route('transactions.create') }}" class="btn btn-primary btn-sm">
-            <i class="bi bi-plus me-1"></i>Add Entry
-        </a>
-        @endif
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span id="badge-agent" class="no-print">
+                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:11px;" onclick="showColumn('agent')">
+                    <i class="bi bi-eye-slash me-1"></i>Agent
+                </button>
+            </span>
+            <span id="badge-payment" class="no-print">
+                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:11px;" onclick="showColumn('payment')">
+                    <i class="bi bi-eye-slash me-1"></i>Payment
+                </button>
+            </span>
+            <span id="badge-by" class="no-print">
+                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:11px;" onclick="showColumn('by')">
+                    <i class="bi bi-eye-slash me-1"></i>By
+                </button>
+            </span>
+            @if(auth()->user()->hasPermission('transactions.create') || auth()->user()->isSuperAdmin())
+            <a href="{{ route('transactions.create') }}" class="btn btn-primary btn-sm">
+                <i class="bi bi-plus me-1"></i>Add Entry
+            </a>
+            @endif
+        </div>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -110,12 +124,18 @@
                     <th><a href="{{ $sortUrl('transaction_date') }}" class="text-decoration-none text-dark">Date <i class="bi {{ $sortIcon('transaction_date') }}"></i></a></th>
                     <th>Customer</th>
                     <th>Description</th>
-                    <th>Agent</th>
-                    <th>Payment</th>
+                    <th class="col-agent" id="th-agent" onclick="hideColumn('agent')" title="Click to hide" style="cursor:pointer;white-space:nowrap;">
+                        Agent <i class="bi bi-eye no-print" style="font-size:10px;opacity:0.5;"></i>
+                    </th>
+                    <th class="col-payment" id="th-payment" onclick="hideColumn('payment')" title="Click to hide" style="cursor:pointer;white-space:nowrap;">
+                        Payment <i class="bi bi-eye no-print" style="font-size:10px;opacity:0.5;"></i>
+                    </th>
                     <th class="text-center"><a href="{{ $sortUrl('type') }}" class="text-decoration-none text-dark">Type <i class="bi {{ $sortIcon('type') }}"></i></a></th>
                     <th class="text-end"><a href="{{ $sortUrl('credit') }}" class="text-decoration-none text-dark">Credit <i class="bi {{ $sortIcon('credit') }}"></i></a></th>
                     <th class="text-end"><a href="{{ $sortUrl('debit') }}" class="text-decoration-none text-dark">Debit <i class="bi {{ $sortIcon('debit') }}"></i></a></th>
-                    <th>By</th>
+                    <th class="col-by" id="th-by" onclick="hideColumn('by')" title="Click to hide" style="cursor:pointer;white-space:nowrap;">
+                        By <i class="bi bi-eye no-print" style="font-size:10px;opacity:0.5;"></i>
+                    </th>
                     <th></th>
                 </tr>
             </thead>
@@ -131,8 +151,8 @@
                 <td style="font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                     {{ $t->description ?? '—' }}
                 </td>
-                <td style="font-size:12px;color:#6c757d;">{{ $t->agent?->name ?? $t->remark ?? '—' }}</td>
-                <td style="font-size:12px;color:#6c757d;">{{ $t->paymentType?->payment_type ?? '—' }}</td>
+                <td class="col-agent" style="font-size:12px;color:#6c757d;">{{ $t->agent?->name ?? $t->remark ?? '—' }}</td>
+                <td class="col-payment" style="font-size:12px;color:#6c757d;">{{ $t->paymentType?->payment_type ?? '—' }}</td>
                 <td class="text-center">
                     <span class="badge {{ $t->type==='Credit' ? 'badge-credit' : 'badge-debit' }}" style="font-size:10px;">
                         {{ $t->type }}
@@ -146,7 +166,7 @@
                     @if($t->debit > 0)<span class="bal-neg">{{ fmt_amount($t->debit) }}</span>
                     @else <span class="text-muted">—</span>@endif
                 </td>
-                <td style="font-size:11px;color:#6c757d;">{{ $t->createdBy?->name ?? 'Import' }}</td>
+                <td class="col-by" style="font-size:11px;color:#6c757d;">{{ $t->createdBy?->name ?? 'Import' }}</td>
                 <td>
                     @if(auth()->user()->hasPermission('transactions.edit') || auth()->user()->isSuperAdmin())
                     <a href="{{ route('transactions.edit',$t) }}" class="btn btn-sm btn-link p-0 text-muted"><i class="bi bi-pencil"></i></a>
@@ -171,3 +191,39 @@
 </div>
 
 @endsection
+
+@push('styles')
+<style>
+#th-agent:hover, #th-payment:hover, #th-by:hover {
+    background: #f0f4ff;
+    color: #3b5bdb;
+}
+#th-agent:hover .bi-eye, #th-payment:hover .bi-eye,
+#th-by:hover .bi-eye { opacity: 1; }
+@media print {
+    .no-print { display: none !important; }
+}
+</style>
+@endpush
+
+@push('scripts')
+<script>
+const colState = { agent: false, payment: false, by: false };
+
+document.addEventListener('DOMContentLoaded', () => {
+    ['agent', 'payment', 'by'].forEach(hideColumn);
+});
+
+function hideColumn(col) {
+    colState[col] = false;
+    document.querySelectorAll('.col-' + col).forEach(el => el.style.display = 'none');
+    document.getElementById('badge-' + col).style.removeProperty('display');
+}
+
+function showColumn(col) {
+    colState[col] = true;
+    document.querySelectorAll('.col-' + col).forEach(el => el.style.display = '');
+    document.getElementById('badge-' + col).style.setProperty('display', 'none', 'important');
+}
+</script>
+@endpush

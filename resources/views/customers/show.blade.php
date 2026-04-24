@@ -139,11 +139,24 @@
 
 {{-- ── Ledger Table ─────────────────────────────────────────────────────── --}}
 <div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <span><i class="bi bi-journal-text me-2"></i>Account Ledger</span>
-        <span style="font-size:12px;color:#6c757d;">
-            {{ \Carbon\Carbon::parse($from)->format('d M Y') }} — {{ \Carbon\Carbon::parse($to)->format('d M Y') }}
-        </span>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            {{-- Restore badges for hidden columns (no-print) --}}
+            <span id="badge-agent" class="no-print">
+                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:11px;" onclick="showColumn('agent')">
+                    <i class="bi bi-eye-slash me-1"></i>Agent
+                </button>
+            </span>
+            <span id="badge-payment" class="no-print">
+                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:11px;" onclick="showColumn('payment')">
+                    <i class="bi bi-eye-slash me-1"></i>Payment Mode
+                </button>
+            </span>
+            <span style="font-size:12px;color:#6c757d;">
+                {{ \Carbon\Carbon::parse($from)->format('d M Y') }} — {{ \Carbon\Carbon::parse($to)->format('d M Y') }}
+            </span>
+        </div>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -152,8 +165,12 @@
                 <tr>
                     <th style="width:110px;">Date</th>
                     <th>Description</th>
-                    <th>Agent</th>
-                    <th>Payment</th>
+                    <th class="col-agent" id="th-agent" onclick="hideColumn('agent')" title="Click to hide column" style="cursor:pointer;white-space:nowrap;">
+                        Agent <i class="bi bi-eye no-print" style="font-size:10px;opacity:0.5;"></i>
+                    </th>
+                    <th class="col-payment" id="th-payment" onclick="hideColumn('payment')" title="Click to hide column" style="cursor:pointer;white-space:nowrap;">
+                        Payment <i class="bi bi-eye no-print" style="font-size:10px;opacity:0.5;"></i>
+                    </th>
                     <th class="text-end" style="color:#059669;">Credit</th>
                     <th class="text-end" style="color:#dc2626;">Debit</th>
                     <th class="text-end">Balance</th>
@@ -172,8 +189,8 @@
                     <span style="font-size:11px;">(as of {{ \Carbon\Carbon::parse($from)->subDay()->format('d M Y') }})</span>
                     @endif
                 </td>
-                <td>—</td>
-                <td>—</td>
+                <td class="col-agent">—</td>
+                <td class="col-payment">—</td>
                 <td class="text-end">
                     @if($balanceBroughtForward < -0.01)
                     <span class="bal-pos">{{ fmt_amount(abs($balanceBroughtForward)) }}</span>
@@ -214,10 +231,10 @@
                     <div style="font-size:11px;color:#6c757d;">{{ $row['remark'] }}</div>
                     @endif
                 </td>
-                <td style="font-size:12px;color:#6c757d;">
+                <td class="col-agent" style="font-size:12px;color:#6c757d;">
                     {{ $row['agent']['name'] ?? '—' }}
                 </td>
-                <td style="font-size:12px;color:#6c757d;">
+                <td class="col-payment" style="font-size:12px;color:#6c757d;">
                     {{ $row['payment_type']['payment_type'] ?? '—' }}
                 </td>
                 <td class="text-end">
@@ -268,14 +285,14 @@
             {{-- Footer: period totals + closing balance ──────────────────── --}}
             <tfoot style="background:#f9fafb;">
                 <tr>
-                    <td colspan="4" class="text-end fw-bold" style="font-size:12px;">Period Total</td>
+                    <td id="tfoot-period-colspan" colspan="4" class="text-end fw-bold" style="font-size:12px;">Period Total</td>
                     <td class="text-end fw-bold bal-pos">{{ fmt_amount($totalCredit) }}</td>
                     <td class="text-end fw-bold bal-neg">{{ fmt_amount($totalDebit) }}</td>
                     <td class="text-end"></td>
                     <td></td>
                 </tr>
                 <tr style="border-top:2px solid #e8ecf0;">
-                    <td colspan="4" class="text-end fw-bold" style="font-size:13px;">Closing Balance</td>
+                    <td id="tfoot-closing-colspan" colspan="4" class="text-end fw-bold" style="font-size:13px;">Closing Balance</td>
                     <td colspan="2"></td>
                     <td class="text-end fw-bold">
                         @php $cb = $closingBalance; @endphp
@@ -297,3 +314,51 @@
 </div>
 
 @endsection
+
+@push('styles')
+<style>
+#th-agent:hover, #th-payment:hover {
+    background: #f0f4ff;
+    color: #3b5bdb;
+}
+#th-agent:hover .bi-eye, #th-payment:hover .bi-eye {
+    opacity: 1;
+}
+@media print {
+    .no-print { display: none !important; }
+}
+</style>
+@endpush
+
+@push('scripts')
+<script>
+const colState = { agent: false, payment: false };
+
+document.addEventListener('DOMContentLoaded', () => {
+    hideColumn('agent');
+    hideColumn('payment');
+});
+
+function hideColumn(col) {
+    colState[col] = false;
+    document.querySelectorAll('.col-' + col).forEach(el => el.style.display = 'none');
+    document.getElementById('badge-' + col).style.removeProperty('display');
+    updateTfootColspan();
+}
+
+function showColumn(col) {
+    colState[col] = true;
+    document.querySelectorAll('.col-' + col).forEach(el => el.style.display = '');
+    document.getElementById('badge-' + col).style.setProperty('display', 'none', 'important');
+    updateTfootColspan();
+}
+
+function updateTfootColspan() {
+    const span = 2 + (colState.agent ? 1 : 0) + (colState.payment ? 1 : 0);
+    ['tfoot-period-colspan', 'tfoot-closing-colspan'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.setAttribute('colspan', span);
+    });
+}
+</script>
+@endpush

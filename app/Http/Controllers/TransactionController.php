@@ -21,7 +21,18 @@ class TransactionController extends Controller
         $sortBy  = in_array($request->get('sort_by'), ['transaction_date', 'type', 'credit', 'debit'])
             ? $request->get('sort_by')
             : 'transaction_date';
-        $sortDir = $request->get('sort_dir') === 'asc' ? 'asc' : 'desc';
+
+        $hasFilter = $request->filled('customer_id')
+            || $request->filled('type')
+            || $request->filled('agent_id')
+            || $request->filled('from')
+            || $request->filled('to')
+            || $request->filled('search')
+            || $request->filled('amount');
+        $defaultDir = $hasFilter ? 'asc' : 'desc';
+        $sortDir = in_array($request->get('sort_dir'), ['asc', 'desc'])
+            ? $request->get('sort_dir')
+            : $defaultDir;
 
         $query = Transaction::with(['customer', 'paymentType', 'agent', 'createdBy'])
             ->orderBy($sortBy, $sortDir)
@@ -83,7 +94,7 @@ class TransactionController extends Controller
         $paymentTypes = PaymentType::where('is_active', true)->pluck('payment_type', 'id');
 
         return view('transactions.index', compact(
-            'transactions', 'summary', 'customers', 'agents', 'paymentTypes'
+            'transactions', 'summary', 'customers', 'agents', 'paymentTypes', 'sortBy', 'sortDir'
         ));
     }
 
