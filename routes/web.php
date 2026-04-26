@@ -32,6 +32,9 @@ Route::middleware('auth')->group(function () {
     Route::resource('customers', CustomerController::class);
     Route::patch('customers/{customer}/toggle-status', [CustomerController::class, 'toggleStatus'])
         ->name('customers.toggle-status');
+    Route::delete('customers/{customer}/purge',
+        [CustomerController::class, 'purge']
+    )->name('customers.purge');	
 
     // ── Transactions ──────────────────────────────────────────
     Route::resource('transactions', TransactionController::class)->except(['show']);

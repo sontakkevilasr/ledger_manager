@@ -326,6 +326,70 @@ class CustomerController extends Controller
         return back()->with('success', "Customer [{$customer->customer_name}] {$status}.");
     }
 
+
+    // ── Purge (permanent hard delete) ────────────────────────
+    //
+    // Completely and irreversibly removes the customer and ALL their
+    // transaction history from the database.
+    //
+    // Guards:
+    //   1. allow_customer_purge config must be ON (set in Settings)
+    //   2. User must be Super Admin
+    //   3. Request must include correct customer name confirmation
+    //   4. Action is logged BEFORE deletion so the log survives
+    //
+    public function purge(Request $request, Customer $customer)
+    {
+        // Guard 1 — feature must be enabled in settings
+        if (! config('app.allow_customer_purge', false)) {
+            abort(403, 'Customer purge is not enabled. Enable it in Settings → Danger Zone.');
+        }
+
+        // Guard 2 — Super Admin only
+        if (! Auth::user()->isSuperAdmin()) {
+            abort(403, 'Only Super Admin can permanently delete customers.');
+        }
+
+        // Guard 3 — name confirmation must match exactly
+        $request->validate([
+            'confirm_name' => 'required|string',
+        ]);
+
+        if (trim($request->confirm_name) !== $customer->customer_name) {
+            return back()->with('purge_error',
+                'Customer name did not match. Please type the exact name to confirm.'
+            );
+        }
+
+        // Gather stats before deletion for the audit log
+        $txnCount    = $customer->transactions()->withTrashed()->count();
+        $balance     = $customer->balance;
+        $customerName = $customer->customer_name;
+
+        // Guard 4 — Log BEFORE deletion so this record survives
+        ActivityLogger::log(
+            'purged', 'customers',
+            $customer->id,
+            $customerName,
+            "TRANSACTION PURGE: Permanently deleted {$txnCount} transactions " .
+            "for customer [{$customerName}]. " .
+            "Balance was " . number_format(abs($balance), 2) .
+            ($balance > 0 ? ' Dr' : ($balance < 0 ? ' Cr' : ' (settled)')) .
+            ". Purged by [" . Auth::user()->name . "]. Customer record kept."
+        );
+
+        DB::transaction(function () use ($customer) {
+            // Hard delete ALL transactions only — customer record is KEPT
+            $customer->transactions()->withTrashed()->forceDelete();
+        });
+
+        return redirect()
+            ->route('customers.show', $customer)
+            ->with('success',
+                "{$txnCount} transactions for [{$customerName}] have been permanently deleted. Customer record is preserved."
+            );
+    }
+
     // ── Permission helper ─────────────────────────────────────
     private function checkPermission(string $permission): void
     {

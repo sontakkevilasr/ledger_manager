@@ -49,6 +49,15 @@ return new class extends Migration
                 'created_at'  => now(),
                 'updated_at'  => now(),
             ],
+            [
+                'key'         => 'allow_customer_purge',
+                'value'       => '0',
+                'label'       => 'Allow Permanent Customer Purge',
+                'type'        => 'boolean',
+                'description' => 'When ON, Super Admin can permanently and irreversibly delete a customer and all their transaction history. This is intended only for ended relationships where data must be completely removed.',
+                'created_at'  => now(),
+                'updated_at'  => now(),
+            ],
         ]);
     }
 

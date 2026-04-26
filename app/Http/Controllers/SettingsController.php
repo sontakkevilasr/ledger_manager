@@ -42,7 +42,8 @@ class SettingsController extends Controller
         $now    = now();
 
         // Save scale_amounts (checkbox — absent = 0, present = 1)
-        $this->saveSetting('scale_amounts', $request->has('scale_amounts') ? '1' : '0', $userId, $now);
+        $this->saveSetting('scale_amounts',        $request->has('scale_amounts')        ? '1' : '0', $userId, $now);
+        $this->saveSetting('allow_customer_purge', $request->has('allow_customer_purge') ? '1' : '0', $userId, $now);
 
         // Save text settings
         if ($request->filled('company_name')) {
@@ -54,6 +55,7 @@ class SettingsController extends Controller
 
         // Clear the settings cache so next request picks up new values immediately
         cache()->forget('setting.scale_amounts');
+        cache()->forget('setting.allow_customer_purge');
 
         // Log the change
         \App\Services\ActivityLogger::log(

@@ -120,7 +120,22 @@
     <a href="{{ route('customers.index') }}" class="btn btn-link btn-sm text-muted ms-auto">
         <i class="bi bi-arrow-left me-1"></i>Back
     </a>
+
+    @if(auth()->user()->isSuperAdmin() && config('app.allow_customer_purge'))
+    <button type="button" class="btn btn-sm btn-outline-danger ms-2"
+            onclick="openPurgeModal()"
+            title="Permanently delete all transactions for this customer">
+        <i class="bi bi-trash3 me-1"></i>Delete All Transactions
+    </button>
+    @endif
 </div>
+
+@if(session('purge_error'))
+<div class="alert alert-danger d-flex gap-2 align-items-start mb-3" style="font-size:13px;">
+    <i class="bi bi-exclamation-circle-fill mt-1 flex-shrink-0"></i>
+    <div>{{ session('purge_error') }}</div>
+</div>
+@endif
 
 {{-- ── Date Filter ─────────────────────────────────────────────────────── --}}
 <div class="card mb-3">
@@ -313,6 +328,88 @@
     </div>
 </div>
 
+
+{{-- ── Purge Confirmation Modal ─────────────────────────────────────────── --}}
+@if(auth()->user()->isSuperAdmin() && config('app.allow_customer_purge'))
+<div id="purge-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:16px;padding:32px;max-width:480px;width:calc(100% - 32px);box-shadow:0 25px 60px rgba(0,0,0,.3);">
+
+        {{-- Header --}}
+        <div class="d-flex align-items-center gap-3 mb-4">
+            <div style="width:48px;height:48px;border-radius:12px;background:#fef2f2;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <i class="bi bi-exclamation-octagon-fill text-danger" style="font-size:22px;"></i>
+            </div>
+            <div>
+                <div style="font-size:16px;font-weight:700;color:#111827;">Purge Transaction History</div>
+                <div style="font-size:12px;color:#dc2626;">Transactions deleted permanently — customer kept</div>
+            </div>
+        </div>
+
+        {{-- What will be deleted --}}
+        <div class="mb-4 p-3 rounded" style="background:#fef2f2;border:1px solid #fecaca;">
+            <div style="font-size:12px;font-weight:600;color:#991b1b;margin-bottom:8px;">
+                You are about to permanently erase all transactions for:
+            </div>
+            <div style="font-size:13px;color:#374151;line-height:1.9;">
+                <div><i class="bi bi-check-circle-fill text-success me-2" style="font-size:11px;"></i>
+                    Customer record <strong>kept:</strong> {{ $customer->customer_name }}
+                </div>
+                <div><i class="bi bi-x-circle-fill text-danger me-2" style="font-size:11px;"></i>
+                    All <strong>{{ $customer->transactions()->withTrashed()->count() }} transactions</strong>
+                </div>
+                @php $bal = $customer->balance; @endphp
+                @if(abs($bal) > 0.01)
+                <div class="mt-2 p-2 rounded" style="background:#fff;border:1px solid #fca5a5;">
+                    <i class="bi bi-exclamation-triangle-fill text-warning me-1"></i>
+                    <strong>Outstanding balance: {{ fmt_amount(abs($bal)) }}
+                    {{ $bal > 0 ? 'Dr (unpaid — you will lose this amount)' : 'Cr (you owe customer this amount)' }}
+                    </strong>
+                </div>
+                @else
+                <div><i class="bi bi-check-circle-fill text-success me-2" style="font-size:11px;"></i>
+                    Balance is settled (₹0)
+                </div>
+                @endif
+            </div>
+        </div>
+
+        {{-- Confirmation form --}}
+        <form method="POST" action="{{ route('customers.purge', $customer) }}">
+            @csrf
+            @method('DELETE')
+
+            <div class="mb-4">
+                <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:8px;">
+                    Type <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;color:#dc2626;">{{ $customer->customer_name }}</code> to confirm:
+                </label>
+                <input type="text" name="confirm_name" id="purge-confirm-input"
+                    class="form-control"
+                    placeholder="Type customer name exactly"
+                    autocomplete="off"
+                    oninput="checkPurgeName(this.value)"
+                    style="border:1.5px solid #fca5a5;font-size:14px;">
+                <div style="font-size:11px;color:#9ca3af;margin-top:4px;">
+                    Case-sensitive. Must match exactly.
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" id="purge-submit-btn"
+                    class="btn btn-danger flex-grow-1" disabled
+                    style="font-size:14px;font-weight:600;">
+                    <i class="bi bi-trash3 me-1"></i>Permanently Delete All Transactions
+                </button>
+                <button type="button" class="btn btn-outline-secondary px-4"
+                    onclick="closePurgeModal()">
+                    Cancel
+                </button>
+            </div>
+        </form>
+
+    </div>
+</div>
+@endif
+
 @endsection
 
 @push('styles')
@@ -360,5 +457,31 @@ function updateTfootColspan() {
         if (el) el.setAttribute('colspan', span);
     });
 }
+
+const CUSTOMER_NAME = "{{ $customer->customer_name }}";
+
+function openPurgeModal() {
+    document.getElementById('purge-modal').style.display = 'flex';
+    document.getElementById('purge-confirm-input').value = '';
+    document.getElementById('purge-submit-btn').disabled = true;
+    setTimeout(() => document.getElementById('purge-confirm-input').focus(), 100);
+}
+
+function closePurgeModal() {
+    document.getElementById('purge-modal').style.display = 'none';
+}
+
+function checkPurgeName(val) {
+    const btn = document.getElementById('purge-submit-btn');
+    const matches = val === CUSTOMER_NAME;
+    btn.disabled = !matches;
+    btn.style.opacity = matches ? '1' : '0.5';
+}
+
+// Close on backdrop click
+document.getElementById('purge-modal').addEventListener('click', function(e) {
+    if (e.target === this) closePurgeModal();
+});
+
 </script>
 @endpush

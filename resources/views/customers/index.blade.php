@@ -46,7 +46,7 @@
         <table class="table table-hover mb-0">
             <thead>
                 <tr>
-                    <th>#</th>
+                    <th style="width:40px;">#</th>
                     <th>Customer Name</th>
                     <th>Mobile</th>
                     <th>City</th>
