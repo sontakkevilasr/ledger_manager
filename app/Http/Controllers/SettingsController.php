@@ -33,17 +33,19 @@ class SettingsController extends Controller
         }
 
         $request->validate([
-            'company_name'         => 'nullable|string|max:150',
-            'financial_year_start' => 'nullable|string|max:10',
-            'scale_amounts'        => 'nullable',
+            'company_name'           => 'nullable|string|max:150',
+            'financial_year_start'   => 'nullable|string|max:10',
+            'scale_amounts'          => 'nullable',
+            'allow_transaction_edit' => 'nullable',
         ]);
 
         $userId = Auth::id();
         $now    = now();
 
         // Save scale_amounts (checkbox — absent = 0, present = 1)
-        $this->saveSetting('scale_amounts',        $request->has('scale_amounts')        ? '1' : '0', $userId, $now);
-        $this->saveSetting('allow_customer_purge', $request->has('allow_customer_purge') ? '1' : '0', $userId, $now);
+        $this->saveSetting('scale_amounts',          $request->has('scale_amounts')          ? '1' : '0', $userId, $now);
+        $this->saveSetting('allow_customer_purge',   $request->has('allow_customer_purge')   ? '1' : '0', $userId, $now);
+        $this->saveSetting('allow_transaction_edit', $request->has('allow_transaction_edit') ? '1' : '0', $userId, $now);
 
         // Save text settings
         if ($request->filled('company_name')) {
@@ -56,6 +58,7 @@ class SettingsController extends Controller
         // Clear the settings cache so next request picks up new values immediately
         cache()->forget('setting.scale_amounts');
         cache()->forget('setting.allow_customer_purge');
+        cache()->forget('setting.allow_transaction_edit');
 
         // Log the change
         \App\Services\ActivityLogger::log(

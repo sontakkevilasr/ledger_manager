@@ -137,6 +137,62 @@
     </div>
     <div class="card-body">
 
+        {{-- ── Allow Transaction Edit / Delete ────────────────────────── --}}
+        <div class="d-flex align-items-start justify-content-between gap-4 mb-4 pb-4" style="border-bottom:1px solid #fee2e2;">
+            <div style="flex:1;">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <span style="font-size:14px;font-weight:600;color:#111827;">
+                        Allow Edit &amp; Delete Transactions
+                    </span>
+                    @if(isset($settings['allow_transaction_edit']) && $settings['allow_transaction_edit']->value === '1')
+                    <span class="badge" style="background:#d1fae5;color:#065f46;font-size:10px;">
+                        <i class="bi bi-unlock-fill me-1"></i>Currently ENABLED
+                    </span>
+                    @else
+                    <span class="badge" style="background:#fee2e2;color:#991b1b;font-size:10px;">
+                        <i class="bi bi-lock-fill me-1"></i>Currently DISABLED
+                    </span>
+                    @endif
+                </div>
+
+                <div style="font-size:13px;color:#374151;line-height:1.7;margin-bottom:12px;">
+                    When <strong>ON</strong> (default): Users with permission can edit and delete existing transactions.
+                    A customer-name confirmation is required before any change is saved.<br>
+                    When <strong>OFF</strong>: No one — including Super Admin — can edit or delete existing transactions.
+                    The Edit page becomes read-only. Use this to lock the books at period close.
+                </div>
+
+                <div class="p-3 rounded" style="background:#eff3ff;border:1px solid #c7d2fe;">
+                    <div style="font-size:11px;font-weight:700;color:#3730a3;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;">
+                        Safeguards when ENABLED
+                    </div>
+                    <div class="d-flex flex-column gap-2">
+                        <div class="d-flex align-items-start gap-2" style="font-size:12px;color:#374151;">
+                            <i class="bi bi-shield-check text-primary mt-1 flex-shrink-0"></i>
+                            <div><strong>Permission-gated</strong> — Only users with the <code>transactions.edit</code> or <code>transactions.delete</code> permission see the buttons</div>
+                        </div>
+                        <div class="d-flex align-items-start gap-2" style="font-size:12px;color:#374151;">
+                            <i class="bi bi-shield-check text-primary mt-1 flex-shrink-0"></i>
+                            <div><strong>Customer name confirmation</strong> — User must type the exact customer name before the action proceeds</div>
+                        </div>
+                        <div class="d-flex align-items-start gap-2" style="font-size:12px;color:#374151;">
+                            <i class="bi bi-shield-check text-primary mt-1 flex-shrink-0"></i>
+                            <div><strong>Audit trail</strong> — Every edit is logged with old and new values for accountability</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-shrink-0 pt-1">
+                <div class="form-check form-switch" style="transform:scale(1.4);transform-origin:right center;">
+                    <input class="form-check-input" type="checkbox"
+                        name="allow_transaction_edit"
+                        id="allow_transaction_edit"
+                        {{ isset($settings['allow_transaction_edit']) && $settings['allow_transaction_edit']->value === '1' ? 'checked' : '' }}>
+                </div>
+            </div>
+        </div>
+
         {{-- ── Allow Customer Purge ─────────────────────────────────────── --}}
         <div class="d-flex align-items-start justify-content-between gap-4">
             <div style="flex:1;">

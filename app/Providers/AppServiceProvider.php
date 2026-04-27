@@ -44,6 +44,19 @@ class AppServiceProvider extends ServiceProvider
         }
 
         config(['app.allow_customer_purge' => $allowPurge]);
+
+        // ── Load allow_transaction_edit setting ────────────────────────────
+        try {
+            $allowTxnEdit = cache()->remember('setting.allow_transaction_edit', 60, function () {
+                return DB::table('settings')
+                    ->where('key', 'allow_transaction_edit')
+                    ->value('value') !== '0';
+            });
+        } catch (\Exception $e) {
+            $allowTxnEdit = true;
+        }
+
+        config(['app.allow_transaction_edit' => $allowTxnEdit]);
 	Paginator::useBootstrap();
     }
 }

@@ -10,7 +10,6 @@ use App\Services\ActivityLogger;
 use App\Exports\TransactionsExport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -195,8 +194,9 @@ class TransactionController extends Controller
         $customers    = Customer::active()->orderBy('customer_name')->pluck('customer_name', 'id');
         $paymentTypes = PaymentType::where('is_active', true)->pluck('payment_type', 'id');
         $agents       = Agent::where('is_active', true)->orderBy('name')->pluck('name', 'id');
+        $customerName = $transaction->customer->customer_name;
 
-        return view('transactions.edit', compact('transaction', 'customers', 'paymentTypes', 'agents'));
+        return view('transactions.edit', compact('transaction', 'customers', 'paymentTypes', 'agents', 'customerName'));
     }
 
     // ── Update transaction ────────────────────────────────────
@@ -342,4 +342,5 @@ class TransactionController extends Controller
             abort(403, 'You do not have permission to perform this action.');
         }
     }
+
 }
