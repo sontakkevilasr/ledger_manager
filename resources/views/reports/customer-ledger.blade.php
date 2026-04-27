@@ -73,21 +73,26 @@
 {{-- ── Summary Row ──────────────────────────────────────────────────────── --}}
 <div class="row g-2 mb-3">
     <div class="col-4">
-        <div class="stat-card text-center py-3">
-            <div class="stat-label">Opening Balance</div>
-            <div class="stat-value" style="font-size:18px;">{{ fmt_amount($customer->opening_balance) }}</div>
-        </div>
-    </div>
-    <div class="col-4">
-        <div class="stat-card text-center py-3">
+        <div class="stat-card text-center py-4">
             <div class="stat-label">Total Credit</div>
             <div class="stat-value" style="font-size:18px;color:#059669;">{{ fmt_amount($ledger->sum('credit')) }}</div>
         </div>
     </div>
     <div class="col-4">
-        <div class="stat-card text-center py-3">
+        <div class="stat-card text-center py-4">
             <div class="stat-label">Total Debit</div>
             <div class="stat-value" style="font-size:18px;color:#dc2626;">{{ fmt_amount($ledger->sum('debit')) }}</div>
+        </div>
+    </div>
+    <div class="col-4">
+        <div class="stat-card text-center py-3">
+            <div class="stat-label">Closing Balance</div>
+            <div class="stat-value {{ $runningBalance > 0.01 ? 'bal-pos' : ($runningBalance < -0.01 ? 'bal-neg' : 'bal-zero') }}" style="font-size:18px;">
+                {{ fmt_amount(abs($runningBalance)) }}
+            </div>
+            <div style="font-size:11px;color:#6b7280;">
+                {{ $runningBalance > 0.01 ? 'Dr' : ($runningBalance < -0.01 ? 'Cr' : 'Settled') }}
+            </div>
         </div>
     </div>
 </div>

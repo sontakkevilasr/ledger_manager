@@ -56,13 +56,26 @@
             </div>
             <input type="hidden" name="sort_by" value="{{ $sortBy }}">
             <div class="col-md-1">
-                <button class="btn btn-primary btn-sm w-100">Filter</button>
+                <button class="btn btn-primary btn-sm w-100">Search</button>
             </div>
             @if(request()->hasAny(['customer_id','type','agent_id','from','to','search','amount']))
             <div class="col-md-1">
                 <a href="{{ route('transactions.index') }}" class="btn btn-outline-secondary btn-sm w-100">Clear</a>
             </div>
             @endif
+            @php $exportQuery = http_build_query(request()->only(['customer_id','type','agent_id','from','to','search','amount','sort_by','sort_dir'])); @endphp
+            <div class="col-auto d-flex gap-1">
+                <a id="export-excel-btn"
+                   href="{{ route('transactions.export', 'excel') }}?{{ $exportQuery }}"
+                   class="btn btn-success btn-sm" title="Export to Excel">
+                    <i class="bi bi-file-earmark-excel me-1"></i>Excel
+                </a>
+                <a id="export-pdf-btn"
+                   href="{{ route('transactions.export', 'pdf') }}?{{ $exportQuery }}"
+                   class="btn btn-danger btn-sm" title="Export to PDF">
+                    <i class="bi bi-file-earmark-pdf me-1"></i>PDF
+                </a>
+            </div>
         </form>
     </div>
 </div>
@@ -218,12 +231,25 @@ function hideColumn(col) {
     colState[col] = false;
     document.querySelectorAll('.col-' + col).forEach(el => el.style.display = 'none');
     document.getElementById('badge-' + col).style.removeProperty('display');
+    updateExportUrls();
 }
 
 function showColumn(col) {
     colState[col] = true;
     document.querySelectorAll('.col-' + col).forEach(el => el.style.display = '');
     document.getElementById('badge-' + col).style.setProperty('display', 'none', 'important');
+    updateExportUrls();
+}
+
+function updateExportUrls() {
+    const visible = Object.keys(colState).filter(c => colState[c]);
+    const colParam = visible.length ? '&cols=' + visible.join(',') : '';
+    ['export-excel-btn', 'export-pdf-btn'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const base = el.href.split('&cols=')[0];
+        el.href = base + colParam;
+    });
 }
 </script>
 @endpush

@@ -40,6 +40,9 @@ Route::middleware('auth')->group(function () {
     Route::resource('transactions', TransactionController::class)->except(['show']);
     Route::get('transactions/{transaction}',        [TransactionController::class, 'show'])
         ->name('transactions.show');
+    Route::get('transactions/export/{format}',      [TransactionController::class, 'export'])
+        ->name('transactions.export')
+        ->where('format', 'pdf|excel');
     Route::get('api/customers/{customer}/balance',  [TransactionController::class, 'getBalance'])
         ->name('api.customer.balance');
 
