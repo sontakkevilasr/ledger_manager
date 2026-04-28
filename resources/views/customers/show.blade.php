@@ -113,7 +113,7 @@
         <i class="bi bi-pencil me-1"></i>Edit
     </a>
     @endif
-    <a href="{{ route('reports.customer-ledger') }}?customer_id={{ $customer->id }}&from={{ $from }}&to={{ $to }}"
+    <a href="{{ route('reports.customer-ledger') }}?customer_id={{ $customer->id }}{{ $viewAll ? '&all=1' : '&from='.$from.'&to='.$to }}"
        class="btn btn-outline-primary btn-sm" target="_blank">
         <i class="bi bi-printer me-1"></i>Print Ledger
     </a>
@@ -140,6 +140,17 @@
 {{-- ── Date Filter ─────────────────────────────────────────────────────── --}}
 <div class="card mb-3">
     <div class="card-body py-2">
+        @if($viewAll)
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span class="badge" style="background:#eff3ff;color:#3b5bdb;font-size:12px;padding:5px 10px;">
+                <i class="bi bi-infinity me-1"></i>All Transactions
+            </span>
+            <span style="font-size:12px;color:#6c757d;">{{ $ledger->count() }} entries</span>
+            <a href="{{ route('customers.show', $customer) }}" class="btn btn-outline-secondary btn-sm ms-2">
+                <i class="bi bi-calendar-range me-1"></i>Switch to Date Filter
+            </a>
+        </div>
+        @else
         <form method="GET" class="d-flex align-items-center gap-2 flex-wrap">
             <label style="font-size:12px;font-weight:500;margin-bottom:0;">Period:</label>
             <input type="date" name="from" class="form-control form-control-sm" style="width:150px;" value="{{ $from }}">
@@ -147,8 +158,12 @@
             <input type="date" name="to" class="form-control form-control-sm" style="width:150px;" value="{{ $to }}">
             <button class="btn btn-primary btn-sm">Apply</button>
             <a href="{{ route('customers.show', $customer) }}" class="btn btn-outline-secondary btn-sm">Reset</a>
+            <a href="{{ route('customers.show', $customer) }}?all=1" class="btn btn-outline-info btn-sm">
+                <i class="bi bi-infinity me-1"></i>All Time
+            </a>
             <span style="font-size:12px;color:#6c757d;margin-left:4px;">{{ $ledger->count() }} entries</span>
         </form>
+        @endif
     </div>
 </div>
 
@@ -168,9 +183,15 @@
                     <i class="bi bi-eye-slash me-1"></i>Payment Mode
                 </button>
             </span>
+            @if($viewAll)
+            <span style="font-size:12px;color:#6c757d;">
+                <i class="bi bi-infinity me-1"></i>All Transactions
+            </span>
+            @else
             <span style="font-size:12px;color:#6c757d;">
                 {{ \Carbon\Carbon::parse($from)->format('d M Y') }} — {{ \Carbon\Carbon::parse($to)->format('d M Y') }}
             </span>
+            @endif
         </div>
     </div>
     <div class="card-body p-0">
@@ -194,8 +215,8 @@
             </thead>
             <tbody>
 
-            {{-- Balance Brought Forward row ─────────────────────────────── --}}
-            {{-- This is the correct balance at the START of the filtered period --}}
+            {{-- Balance Brought Forward row (only in date-filtered view) ── --}}
+            @if(!$viewAll)
             <tr style="background:#f9fafb;font-style:italic;">
                 <td style="font-size:12px;color:#6c757d;">B/F</td>
                 <td style="font-size:12px;color:#6c757d;">
@@ -229,6 +250,7 @@
                 </td>
                 <td></td>
             </tr>
+            @endif
 
             {{-- Transaction rows ─────────────────────────────────────────── --}}
             @forelse($ledger as $row)

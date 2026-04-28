@@ -170,8 +170,15 @@ class ReportController extends Controller
         $this->checkPermission('reports.view');
 
         $customerId = $request->get('customer_id');
-        $from       = $request->get('from', now()->startOfYear()->toDateString());
-        $to         = $request->get('to', now()->toDateString());
+        $viewAll    = $request->boolean('all');
+
+        if ($viewAll) {
+            $from = null;
+            $to   = null;
+        } else {
+            $from = $request->get('from', now()->startOfYear()->toDateString());
+            $to   = $request->get('to', now()->toDateString());
+        }
 
         $customer = $customerId ? Customer::findOrFail($customerId) : null;
 
@@ -180,30 +187,39 @@ class ReportController extends Controller
         $ledger         = collect();
 
         if ($customer) {
-            $transactions = Transaction::forCustomer($customer->id)
-                ->dateRange($from, $to)
+            $txnQuery = Transaction::forCustomer($customer->id)
                 ->with(['paymentType', 'agent', 'createdBy'])
+                ->orderBy('is_opening', 'desc')
                 ->orderBy('transaction_date')
-                ->orderBy('id')
-                ->get();
+                ->orderBy('id');
 
-            $runningBalance = $customer->opening_balance;
+            if (! $viewAll) {
+                $txnQuery->dateRange($from, $to);
+            }
+
+            $transactions = $txnQuery->get();
+
+            // Dr opening = positive (customer owes), Cr opening = negative (we owe)
+            $openingSign    = ($customer->opening_balance_type ?? 'Dr') === 'Dr' ? 1 : -1;
+            $runningBalance = $openingSign * (float) $customer->opening_balance;
+
             $ledger = $transactions->map(function ($txn) use (&$runningBalance) {
-                $runningBalance += ($txn->credit - $txn->debit);
-                return array_merge($txn->toArray(), ['running_balance' => $runningBalance]);
+                $runningBalance += ($txn->debit - $txn->credit); // debit increases balance, credit reduces it
+                return array_merge($txn->toArray(), ['running_balance' => round($runningBalance, 2)]);
             });
 
             ActivityLogger::log(
                 'viewed', 'reports',
                 $customer->id, $customer->customer_name,
-                "Viewed ledger report for {$customer->customer_name} ({$from} to {$to})"
+                "Viewed ledger report for {$customer->customer_name} " .
+                    ($viewAll ? '(all time)' : "({$from} to {$to})")
             );
         }
 
         $customers = Customer::active()->orderBy('customer_name')->pluck('customer_name', 'id');
 
         return view('reports.customer-ledger', compact(
-            'customers', 'customer', 'ledger', 'from', 'to', 'runningBalance'
+            'customers', 'customer', 'ledger', 'from', 'to', 'viewAll', 'runningBalance'
         ));
     }
 

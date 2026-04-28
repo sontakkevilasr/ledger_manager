@@ -17,6 +17,14 @@
                     @endforeach
                 </select>
             </div>
+            @if($viewAll)
+            <div class="col-md-4 d-flex align-items-end gap-2">
+                <span class="badge" style="background:#eff3ff;color:#3b5bdb;font-size:13px;padding:8px 14px;">
+                    <i class="bi bi-infinity me-1"></i>All Transactions
+                </span>
+                <input type="hidden" name="all" value="1">
+            </div>
+            @else
             <div class="col-md-2">
                 <label class="form-label mb-1" style="font-size:12px;">From</label>
                 <input type="date" name="from" class="form-control" value="{{ $from }}">
@@ -25,18 +33,29 @@
                 <label class="form-label mb-1" style="font-size:12px;">To</label>
                 <input type="date" name="to" class="form-control" value="{{ $to }}">
             </div>
+            @endif
             <div class="col-md-2">
                 <button class="btn btn-primary w-100"><i class="bi bi-search me-1"></i>View Ledger</button>
             </div>
             @if($customer)
-            <div class="col-md-2">
-                <button type="button" onclick="window.print()" class="btn btn-outline-secondary w-100">
+            <div class="col-md-auto d-flex gap-2">
+                @if($viewAll)
+                <a href="{{ route('reports.customer-ledger') }}?customer_id={{ $customer->id }}"
+                   class="btn btn-outline-secondary">
+                    <i class="bi bi-calendar-range me-1"></i>Date Filter
+                </a>
+                @else
+                <a href="{{ route('reports.customer-ledger') }}?customer_id={{ $customer->id }}&all=1"
+                   class="btn btn-outline-info">
+                    <i class="bi bi-infinity me-1"></i>All Time
+                </a>
+                @endif
+                <button type="button" onclick="window.print()" class="btn btn-outline-secondary">
                     <i class="bi bi-printer me-1"></i>Print
                 </button>
             </div>
             @endif
         </form>
-
     </div>
 </div>
 
@@ -60,7 +79,11 @@
             <div class="col-md-6 text-md-end">
                 <div style="font-size:12px;color:#6c757d;">Statement Period</div>
                 <div style="font-weight:600;">
-                    {{ \Carbon\Carbon::parse($from)->format('d M Y') }} — {{ \Carbon\Carbon::parse($to)->format('d M Y') }}
+                    @if($viewAll)
+                        <i class="bi bi-infinity me-1"></i>All Transactions
+                    @else
+                        {{ \Carbon\Carbon::parse($from)->format('d M Y') }} — {{ \Carbon\Carbon::parse($to)->format('d M Y') }}
+                    @endif
                 </div>
                 <div style="font-size:12px;color:#6c757d;margin-top:4px;">
                     Printed on {{ now()->format('d M Y, h:i A') }}
@@ -87,7 +110,7 @@
     <div class="col-4">
         <div class="stat-card text-center py-3">
             <div class="stat-label">Closing Balance</div>
-            <div class="stat-value {{ $runningBalance > 0.01 ? 'bal-pos' : ($runningBalance < -0.01 ? 'bal-neg' : 'bal-zero') }}" style="font-size:18px;">
+            <div class="stat-value {{ $runningBalance > 0.01 ? 'bal-neg' : ($runningBalance < -0.01 ? 'bal-pos' : 'bal-zero') }}" style="font-size:18px;">
                 {{ fmt_amount(abs($runningBalance)) }}
             </div>
             <div style="font-size:11px;color:#6b7280;">
@@ -114,8 +137,9 @@
                 </button>
             </span>
             <span style="font-size:12px;color:#6c757d;">Closing Balance:
-                <strong class="{{ $runningBalance > 0 ? 'bal-pos' : ($runningBalance < 0 ? 'bal-neg' : 'bal-zero') }}">
+                <strong class="{{ $runningBalance > 0 ? 'bal-neg' : ($runningBalance < 0 ? 'bal-pos' : 'bal-zero') }}">
                     {{ fmt_amount(abs($runningBalance)) }}
+                    {{ $runningBalance > 0.01 ? 'Dr' : ($runningBalance < -0.01 ? 'Cr' : '') }}
                 </strong>
             </span>
         </div>
@@ -185,10 +209,10 @@
                     @endif
                 </td>
                 <td class="text-end fw-bold">
-                    <span class="{{ $row['running_balance'] > 0.01 ? 'bal-pos' : ($row['running_balance'] < -0.01 ? 'bal-neg' : 'bal-zero') }}">
+                    <span class="{{ $row['running_balance'] > 0.01 ? 'bal-neg' : ($row['running_balance'] < -0.01 ? 'bal-pos' : 'bal-zero') }}">
                         {{ fmt_amount(abs($row['running_balance'])) }}
                     </span>
-                    <div style="font-size:9px;color:#9ca3af;">
+                    <div style="font-size:9px;" class="{{ $row['running_balance'] > 0.01 ? 'text-danger' : ($row['running_balance'] < -0.01 ? 'text-success' : 'text-muted') }}">
                         {{ $row['running_balance'] > 0.01 ? 'Dr' : ($row['running_balance'] < -0.01 ? 'Cr' : '') }}
                     </div>
                 </td>
@@ -210,9 +234,12 @@
                     <td class="text-end fw-bold bal-pos">{{ fmt_amount($ledger->sum('credit')) }}</td>
                     <td class="text-end fw-bold bal-neg">{{ fmt_amount($ledger->sum('debit')) }}</td>
                     <td class="text-end fw-bold">
-                        <span class="{{ $runningBalance > 0.01 ? 'bal-pos' : ($runningBalance < -0.01 ? 'bal-neg' : 'bal-zero') }}">
+                        <span class="{{ $runningBalance > 0.01 ? 'bal-neg' : ($runningBalance < -0.01 ? 'bal-pos' : 'bal-zero') }}">
                             {{ fmt_amount(abs($runningBalance)) }}
                         </span>
+                        <div style="font-size:10px;" class="{{ $runningBalance > 0.01 ? 'text-danger' : ($runningBalance < -0.01 ? 'text-success' : 'text-muted') }}">
+                            {{ $runningBalance > 0.01 ? 'Dr' : ($runningBalance < -0.01 ? 'Cr' : 'Settled') }}
+                        </div>
                     </td>
                 </tr>
             </tfoot>

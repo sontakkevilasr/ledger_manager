@@ -136,31 +136,37 @@ class CustomerController extends Controller
     {
         $this->checkPermission('customers.view');
 
+        $viewAll = $request->boolean('all');
+
         // Date range filter for ledger
-        $from = $request->get('from', now()->startOfYear()->toDateString());
-        $to   = $request->get('to', now()->toDateString());
+        if ($viewAll) {
+            $from = null;
+            $to   = null;
+            $balanceBroughtForward = 0.0;
+        } else {
+            $from = $request->get('from', now()->startOfYear()->toDateString());
+            $to   = $request->get('to', now()->toDateString());
 
-        // ── Balance Brought Forward ────────────────────────────
-        //
-        // B/F = SUM of ALL transactions (including opening) BEFORE $from date.
-        // Since opening balance is now a proper transaction, it is automatically
-        // included when it falls before the filter start date.
-        //
-        $balanceBroughtForward = (float) Transaction::forCustomer($customer->id)
-            ->where('transaction_date', '<', $from)
-            ->whereNull('deleted_at')
-            ->selectRaw('SUM(debit) - SUM(credit) as net')
-            ->value('net');
+            // B/F = SUM of ALL transactions BEFORE $from date
+            $balanceBroughtForward = (float) Transaction::forCustomer($customer->id)
+                ->where('transaction_date', '<', $from)
+                ->whereNull('deleted_at')
+                ->selectRaw('SUM(debit) - SUM(credit) as net')
+                ->value('net');
+        }
 
-        // ── Transactions within filtered period ────────────────
-        // Show opening transaction in a special style via is_opening flag
-        $transactions = Transaction::forCustomer($customer->id)
-            ->dateRange($from, $to)
+        // ── Transactions ───────────────────────────────────────
+        $txnQuery = Transaction::forCustomer($customer->id)
             ->with(['paymentType', 'agent', 'createdBy'])
-            ->orderBy('is_opening', 'desc')  // opening entry always first on same date
+            ->orderBy('is_opening', 'desc')
             ->orderBy('transaction_date')
-            ->orderBy('id')
-            ->get();
+            ->orderBy('id');
+
+        if (! $viewAll) {
+            $txnQuery->dateRange($from, $to);
+        }
+
+        $transactions = $txnQuery->get();
 
         // ── Build ledger rows with running balance ─────────────
         $runningBalance = $balanceBroughtForward;
@@ -185,11 +191,12 @@ class CustomerController extends Controller
         ActivityLogger::log(
             'viewed', 'customers',
             $customer->id, $customer->customer_name,
-            "Viewed ledger for {$customer->customer_name} ({$from} to {$to})"
+            "Viewed ledger for {$customer->customer_name} " .
+                ($viewAll ? '(all time)' : "({$from} to {$to})")
         );
 
         return view('customers.show', compact(
-            'customer', 'ledger', 'from', 'to',
+            'customer', 'ledger', 'from', 'to', 'viewAll',
             'totalCredit', 'totalDebit',
             'balanceBroughtForward', 'closingBalance', 'trueBalance'
         ));
