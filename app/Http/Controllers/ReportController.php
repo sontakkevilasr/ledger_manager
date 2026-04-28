@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\BalanceSummaryExport;
 use App\Models\Customer;
 use App\Models\Transaction;
 use App\Models\Agent;
 use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ReportController extends Controller
 {
@@ -391,10 +393,7 @@ class ReportController extends Controller
         return view('reports.activity-logs', compact('logs', 'modules', 'users'));
     }
 
-    // ── Export Balance Summary as CSV (opens in Excel) ────────
-    //
-    // No package needed — PHP streams a CSV with UTF-8 BOM so
-    // Excel opens it correctly with Indian characters and ₹ amounts.
+    // Exports balance summary as a decorated .xlsx file.
     // Accepts the same filters as the balance summary page.
     public function exportBalanceSummary(Request $request)
     {
@@ -430,7 +429,6 @@ class ReportController extends Controller
             })
             ->groupBy($cols);
 
-        // Apply same filters
         $filter = $request->get('filter', 'all');
         if ($filter === 'debit') {
             $query->having('net_balance', '>', 0.009);
@@ -449,125 +447,18 @@ class ReportController extends Controller
         $query->orderBy('customers.customer_name');
         $customers = $query->get();
 
-        // ── Log the export ──────────────────────────────────────
         ActivityLogger::log(
             'exported', 'reports',
-            description: "Exported balance summary CSV ({$customers->count()} customers, filter: {$filter})"
+            description: "Exported balance summary Excel ({$customers->count()} customers, filter: {$filter})"
         );
 
-        // ── Build filename ──────────────────────────────────────
-        $filename = 'balance-summary-' . now()->format('Y-m-d-His') . '.csv';
+        $filename = 'balance-summary-' . now()->format('Y-m-d-His') . '.xlsx';
 
-        // ── Stream CSV response ─────────────────────────────────
-        $headers = [
-            'Content-Type'        => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-            'Pragma'              => 'no-cache',
-            'Cache-Control'       => 'must-revalidate, post-check=0, pre-check=0',
-            'Expires'             => '0',
-        ];
-
-        $callback = function () use ($customers, $filter) {
-            $handle = fopen('php://output', 'w');
-
-            // UTF-8 BOM — makes Excel open the file correctly
-            // without this, ₹ and Indian city names break
-            fwrite($handle, "\xEF\xBB\xBF");
-
-            // ── Report header rows ──────────────────────────────
-            $scaleOn = config('app.scale_amounts', false);
-
-            fputcsv($handle, ['Aman Traders — Balance Summary Report']);
-            fputcsv($handle, ['Generated on', now()->format('d M Y, h:i A')]);
-            fputcsv($handle, ['Filter', match($filter) {
-                'debit'  => 'Dr — To Collect',
-                'credit' => 'Cr — To Pay',
-                'zero'   => 'Settled (Zero)',
-                default  => 'All Customers',
-            }]);
-
-            // Show note in Excel if amounts are scaled
-            if ($scaleOn) {
-                fputcsv($handle, ['Note', 'Amounts divided by 100 as per display settings (Scale Amount Display is ON)']);
-            }
-
-            fputcsv($handle, []); // blank row
-
-            // ── Column headers ──────────────────────────────────
-            $amtLabel = $scaleOn ? ' (÷100)' : '';
-
-            fputcsv($handle, [
-                'Sr#',
-                'Customer ID',
-                'Customer Name',
-                'City',
-                'State',
-                'Mobile',
-                'Phone',
-                'Opening Balance' . $amtLabel,
-                'Opening Type',
-                'Total Credit' . $amtLabel,
-                'Total Debit' . $amtLabel,
-                'Net Balance' . $amtLabel,
-                'Balance Direction',
-            ]);
-
-            // ── Helper: scale a value for export ────────────────
-            $scaleVal = function (float $val) use ($scaleOn): string {
-                $v = $scaleOn ? $val / 100 : $val;
-                return number_format($v, 2, '.', '');
-            };
-
-            // ── Data rows ───────────────────────────────────────
-            $grandCredit  = 0;
-            $grandDebit   = 0;
-            $grandNet     = 0;
-
-            foreach ($customers as $i => $c) {
-                $bal = $c->net_balance;
-                $dir = $bal > 0.01  ? 'Dr - To Collect'
-                     : ($bal < -0.01 ? 'Cr - To Pay'
-                     : 'Settled');
-
-                fputcsv($handle, [
-                    $i + 1,
-                    $c->id,
-                    $c->customer_name,
-                    $c->city    ?? '',
-                    $c->state   ?? '',
-                    $c->mobile  ?? '',
-                    $c->phone   ?? '',
-                    $scaleVal((float) $c->opening_balance),
-                    $c->opening_balance_type,
-                    $scaleVal((float) $c->total_credit),
-                    $scaleVal((float) $c->total_debit),
-                    $scaleVal(abs($bal)),
-                    $dir,
-                ]);
-
-                $grandCredit += $c->total_credit;
-                $grandDebit  += $c->total_debit;
-                $grandNet    += $bal;
-            }
-
-            // ── Totals row ──────────────────────────────────────
-            fputcsv($handle, []); // blank row
-            fputcsv($handle, [
-                '',
-                '',
-                'TOTAL (' . $customers->count() . ' customers)',
-                '', '', '', '', '', '',
-                $scaleVal($grandCredit),
-                $scaleVal($grandDebit),
-                $scaleVal(abs($grandNet)),
-                $grandNet > 0.01  ? 'Dr - To Collect'
-                    : ($grandNet < -0.01 ? 'Cr - To Pay' : 'Settled'),
-            ]);
-
-            fclose($handle);
-        };
-
-        return response()->stream($callback, 200, $headers);
+        return Excel::download(
+            new BalanceSummaryExport($customers, $filter, (bool) config('app.scale_amounts', false)),
+            $filename,
+            \Maatwebsite\Excel\Excel::XLSX
+        );
     }
 
     private function checkPermission(string $permission): void
