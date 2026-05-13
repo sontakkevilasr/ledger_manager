@@ -257,7 +257,7 @@
             <tr class="{{ !empty($row['is_opening']) ? 'table-light' : '' }}"
                 style="{{ !empty($row['is_opening']) ? 'font-style:italic;' : '' }}">
                 <td style="white-space:nowrap;font-size:12px;">
-                    {{ \Carbon\Carbon::parse($row['transaction_date'])->format('d M Y') }}
+                    {{ $row['transaction_date'] ? \Carbon\Carbon::parse($row['transaction_date'])->format('d M Y') : '' }}
                 </td>
                 <td>
                     @if(!empty($row['is_opening']))
