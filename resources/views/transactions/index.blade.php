@@ -155,7 +155,7 @@
             <tbody>
             @forelse($transactions as $t)
             <tr class="{{ $t->type === 'Credit' ? 'tr-credit' : 'tr-debit' }}">
-                <td style="white-space:nowrap;font-size:12px;">{{ \Carbon\Carbon::parse($t->transaction_date)->format('d M Y') }}</td>
+                <td style="white-space:nowrap;font-size:12px;">{{ $t->transaction_date ? \Carbon\Carbon::parse($t->transaction_date)->format('d M Y') : '' }}</td>
                 <td>
                     <a href="{{ route('customers.show',$t->customer_id) }}" class="text-decoration-none" style="font-size:13px;">
                         {{ $t->customer?->customer_name ?? '—' }}
