@@ -187,7 +187,7 @@ class CustomerController extends Controller
 
         // True all-time balance for the header card
         $trueBalance = $customer->balance;
-
+ 
         ActivityLogger::log(
             'viewed', 'customers',
             $customer->id, $customer->customer_name,
