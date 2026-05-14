@@ -180,7 +180,7 @@
             @forelse($ledger as $row)
             <tr>
                 <td style="font-size:12px;white-space:nowrap;">
-                    {{ \Carbon\Carbon::parse($row['transaction_date'])->format('d M Y') }}
+                    {{ $row['transaction_date'] ? \Carbon\Carbon::parse($row['transaction_date'])->format('d M Y') : '' }}
                 </td>
                 <td>
                     {{ $row['description'] ?? '—' }}
