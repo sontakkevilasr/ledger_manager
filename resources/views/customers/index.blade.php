@@ -10,7 +10,7 @@
         <input type="text" name="search" class="form-control" style="max-width:260px;"
             placeholder="Search name, mobile, city…" value="{{ request('search') }}">
         <select name="status" class="form-select" style="width:140px;">
-            <option value="">All Status</option>
+            <option value="all">All Status</option>
             <option value="active"   {{ request('status')=='active'   ? 'selected':'' }}>Active</option>
             <option value="inactive" {{ request('status')=='inactive' ? 'selected':'' }}>Inactive</option>
         </select>

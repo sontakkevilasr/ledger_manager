@@ -24,10 +24,10 @@ class CustomerController extends Controller
         }
 
         // Filter by status
-        if ($request->get('status') === 'inactive') {
-            $query->where('is_active', false);
-        } elseif ($request->get('status') !== 'all') {
+        if ($request->get('status') === 'active') {
             $query->active();
+        } elseif ($request->get('status') === 'inactive') {
+            $query->where('is_active', false);
         }
 
         // Filter by city
