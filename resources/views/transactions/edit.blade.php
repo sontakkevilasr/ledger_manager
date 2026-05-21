@@ -44,7 +44,7 @@
                 {{-- Customer --}}
                 <div class="col-12">
                     <label class="form-label">Customer <span class="text-danger">*</span></label>
-                    <select name="customer_id" class="form-select" required>
+                    <select name="customer_id" id="customer-select-edit" class="form-select" required>
                         @foreach($customers as $id => $name)
                         <option value="{{ $id }}" {{ $transaction->customer_id == $id ? 'selected' : '' }}>{{ $name }}</option>
                         @endforeach
@@ -194,7 +194,26 @@
 
 @endsection
 
+@push('styles')
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css">
+@endpush
+
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+$(document).ready(function () {
+    $('#customer-select-edit').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        matcher: function(params, data) {
+            if (!params.term || params.term.trim() === '') return data;
+            return data.text.toLowerCase().indexOf(params.term.trim().toLowerCase()) > -1 ? data : null;
+        }
+    });
+});
+</script>
 @if(config('app.allow_transaction_edit'))
 <script>
 const COMPANY_NAME = @json($customerName);

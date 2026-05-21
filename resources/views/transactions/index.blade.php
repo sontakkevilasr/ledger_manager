@@ -14,7 +14,7 @@
         <form method="GET" class="row g-2 align-items-end">
             <div class="col-md-3">
                 <label class="form-label mb-1" style="font-size:12px;">Customer</label>
-                <select name="customer_id" class="form-select form-select-sm">
+                <select name="customer_id" id="customer-select-filter" class="form-select form-select-sm">
                     <option value="">All Customers</option>
                     @foreach($customers as $id => $name)
                     <option value="{{ $id }}" {{ request('customer_id')==$id ? 'selected':'' }}>{{ $name }}</option>
@@ -206,6 +206,8 @@
 @endsection
 
 @push('styles')
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css">
 <style>
 #th-agent:hover, #th-payment:hover, #th-by:hover {
     background: #f0f4ff;
@@ -220,6 +222,21 @@
 @endpush
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+$(document).ready(function () {
+    $('#customer-select-filter').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        selectionCssClass: ':all:',
+        matcher: function(params, data) {
+            if (!params.term || params.term.trim() === '') return data;
+            return data.text.toLowerCase().indexOf(params.term.trim().toLowerCase()) > -1 ? data : null;
+        }
+    });
+});
+</script>
 <script>
 const colState = { agent: false, payment: false, by: false };
 
