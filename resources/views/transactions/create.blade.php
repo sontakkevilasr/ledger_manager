@@ -128,7 +128,44 @@
 </div>
 @endsection
 
+@push('styles')
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css">
+@endpush
+
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+// Substring matcher — finds query anywhere in the text
+function substringMatcher(text, term) {
+    return text.toLowerCase().indexOf(term.toLowerCase()) > -1;
+}
+
+$(document).ready(function () {
+    $('#customer-select').select2({
+        theme: 'bootstrap-5',
+        placeholder: '— Select Customer —',
+        allowClear: true,
+        width: '100%',
+        matcher: function(params, data) {
+            if (!params.term || params.term.trim() === '') return data;
+            if (substringMatcher(data.text, params.term.trim())) return data;
+            return null;
+        }
+    });
+
+    // Re-trigger balance fetch when Select2 changes value
+    $('#customer-select').on('change', function () {
+        $(this)[0].dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    // Trigger on page load if customer pre-selected
+    if ($('#customer-select').val()) {
+        document.getElementById('customer-select').dispatchEvent(new Event('change'));
+    }
+});
+</script>
 <script>
 // Update button color based on type selection
 document.querySelectorAll('input[name="type"]').forEach(r => {
@@ -154,17 +191,14 @@ document.getElementById('customer-select').addEventListener('change', function()
             const el  = document.getElementById('balance-display');
             const balEl = document.getElementById('current-balance');
             el.style.display = 'block';
-            const fmt = '₹' + Math.abs(bal).toLocaleString('en-IN', {minimumFractionDigits:2});
+            const divisor = {{ scale_divisor() }};
+            const scaled  = Math.abs(bal) / divisor;
+            const fmt = '₹' + scaled.toLocaleString('en-IN', {minimumFractionDigits:2});
             balEl.textContent = fmt + (bal > 0 ? ' (to collect)' : bal < 0 ? ' (to pay)' : ' (settled)');
             balEl.style.color = bal > 0 ? '#059669' : bal < 0 ? '#dc2626' : '#6b7280';
         });
 });
 
-// Trigger on page load if customer pre-selected
-document.addEventListener('DOMContentLoaded', () => {
-    const sel = document.getElementById('customer-select');
-    if (sel.value) sel.dispatchEvent(new Event('change'));
-});
 
 function resetAndAddAnother() {
     document.getElementById('txn-form').setAttribute('data-add-another','1');

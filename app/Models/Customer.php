@@ -12,7 +12,7 @@ class Customer extends Model
 
     protected $fillable = [
         'customer_name', 'phone', 'mobile', 'email',
-        'address', 'city', 'state', 'zip_code',
+        'address', 'city', 'state', 'zip_code', 'description',
         'opening_balance', 'opening_balance_type',
         'registered_on', 'is_active',
         'created_by', 'updated_by',

@@ -9,6 +9,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\AgentController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SettingsController;
 
 // ── Public routes ─────────────────────────────────────────────────────────
 Route::middleware('guest')->group(function () {
@@ -31,6 +32,9 @@ Route::middleware('auth')->group(function () {
     Route::resource('customers', CustomerController::class);
     Route::patch('customers/{customer}/toggle-status', [CustomerController::class, 'toggleStatus'])
         ->name('customers.toggle-status');
+    Route::delete('customers/{customer}/purge',
+        [CustomerController::class, 'purge']
+    )->name('customers.purge');	
 
     // ── Transactions ──────────────────────────────────────────
     Route::delete('transactions/bulk-destroy', [TransactionController::class, 'bulkDestroy'])
@@ -38,6 +42,9 @@ Route::middleware('auth')->group(function () {
     Route::resource('transactions', TransactionController::class)->except(['show']);
     Route::get('transactions/{transaction}',        [TransactionController::class, 'show'])
         ->name('transactions.show');
+    Route::get('transactions/export/{format}',      [TransactionController::class, 'export'])
+        ->name('transactions.export')
+        ->where('format', 'pdf|excel');
     Route::get('api/customers/{customer}/balance',  [TransactionController::class, 'getBalance'])
         ->name('api.customer.balance');
 
@@ -60,6 +67,10 @@ Route::middleware('auth')->group(function () {
 
     // ── Users (super_admin only) ──────────────────────────────
     Route::resource('users', UserController::class)->except(['show']);
+
+    // ── Settings (super_admin only) ───────────────────────────
+    Route::get('settings',  [SettingsController::class, 'index'])->name('settings');
+    Route::put('settings',  [SettingsController::class, 'update'])->name('settings.update');
 
     // ── Profile ───────────────────────────────────────────────
     Route::get('profile',                  [ProfileController::class, 'show'])->name('profile');

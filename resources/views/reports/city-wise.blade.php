@@ -22,7 +22,7 @@
         <div class="stat-card text-center">
             <div class="stat-label">Total Credit</div>
             <div class="stat-value bal-pos" style="font-size:18px;">
-                ₹{{ number_format($results->sum('total_credit'), 0) }}
+                {{ fmt_amount($results->sum('total_credit')) }}
             </div>
         </div>
     </div>
@@ -33,7 +33,7 @@
             @php $totalOs = $results->sum('outstanding'); @endphp
             <div class="stat-value" style="font-size:18px;"
                  class="{{ $totalOs > 0 ? 'bal-neg' : ($totalOs < 0 ? 'bal-pos' : 'bal-zero') }}">
-                ₹{{ number_format(abs($totalOs), 0) }}
+                {{ fmt_amount(abs($totalOs)) }}
             </div>
             <div style="font-size:11px;"
                  class="{{ $totalOs > 0.01 ? 'text-danger' : ($totalOs < -0.01 ? 'text-success' : 'text-muted') }}">
@@ -86,11 +86,11 @@
                         <td class="fw-500">{{ $row->city ?? 'Unknown' }}</td>
                         <td style="font-size:12px;color:#6c757d;">{{ $row->state ?? '—' }}</td>
                         <td class="text-center">{{ $row->customer_count }}</td>
-                        <td class="text-end bal-pos">₹{{ number_format($row->total_credit, 0) }}</td>
-                        <td class="text-end bal-neg">₹{{ number_format($row->total_debit, 0) }}</td>
+                        <td class="text-end bal-pos">{{ fmt_amount($row->total_credit) }}</td>
+                        <td class="text-end bal-neg">{{ fmt_amount($row->total_debit) }}</td>
                         <td class="text-end">
                             <span class="fw-bold {{ $os > 0.01 ? 'bal-neg' : ($os < -0.01 ? 'bal-pos' : 'bal-zero') }}">
-                                ₹{{ number_format(abs($os), 0) }}
+                                {{ fmt_amount(abs($os)) }}
                             </span>
                             <div style="font-size:10px;"
                                  class="{{ $os > 0.01 ? 'text-danger' : ($os < -0.01 ? 'text-success' : 'text-muted') }}">
@@ -106,11 +106,11 @@
                         <tr>
                             <td colspan="3" class="text-end" style="font-size:12px;">Total</td>
                             <td class="text-center">{{ $results->sum('customer_count') }}</td>
-                            <td class="text-end bal-pos">₹{{ number_format($results->sum('total_credit'), 0) }}</td>
-                            <td class="text-end bal-neg">₹{{ number_format($results->sum('total_debit'), 0) }}</td>
+                            <td class="text-end bal-pos">{{ fmt_amount($results->sum('total_credit')) }}</td>
+                            <td class="text-end bal-neg">{{ fmt_amount($results->sum('total_debit')) }}</td>
                             @php $footOs = $results->sum('outstanding'); @endphp
                             <td class="text-end fw-bold {{ $footOs > 0.01 ? 'bal-neg' : ($footOs < -0.01 ? 'bal-pos' : 'bal-zero') }}">
-                                ₹{{ number_format(abs($footOs), 0) }}
+                                {{ fmt_amount(abs($footOs)) }}
                                 <div style="font-size:10px;">
                                     {{ $footOs > 0.01 ? 'Dr' : ($footOs < -0.01 ? 'Cr' : '') }}
                                 </div>
@@ -127,6 +127,7 @@
 
 @push('scripts')
 <script>
+const DIVISOR = {{ scale_divisor() }};
 // Only plot cities with positive Dr outstanding for the chart
 const allLabels  = @json($results->pluck('city'));
 const allData    = @json($results->pluck('outstanding'));
@@ -139,7 +140,7 @@ const chartColors = [];
 allLabels.forEach((label, i) => {
     if (allData[i] > 0) {
         chartLabels.push(label);
-        chartData.push(allData[i]);
+        chartData.push(allData[i] / DIVISOR);
         chartColors.push(colors[chartColors.length % colors.length]);
     }
 });
@@ -163,7 +164,7 @@ if (chartData.length > 0) {
                 legend: { position: 'bottom', labels: { font:{ size:11 }, boxWidth:10, padding:8 } },
                 tooltip: {
                     callbacks: {
-                        label: ctx => ' ₹' + Number(ctx.raw).toLocaleString('en-IN') + ' Dr'
+                        label: ctx => ' ₹' + (ctx.raw).toLocaleString('en-IN') + ' Dr'
                     }
                 }
             }

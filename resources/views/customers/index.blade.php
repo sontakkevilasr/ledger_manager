@@ -10,7 +10,7 @@
         <input type="text" name="search" class="form-control" style="max-width:260px;"
             placeholder="Search name, mobile, city…" value="{{ request('search') }}">
         <select name="status" class="form-select" style="width:140px;">
-            <option value="">All Status</option>
+            <option value="all">All Status</option>
             <option value="active"   {{ request('status')=='active'   ? 'selected':'' }}>Active</option>
             <option value="inactive" {{ request('status')=='inactive' ? 'selected':'' }}>Inactive</option>
         </select>
@@ -44,7 +44,7 @@
     <div class="card-body p-0">
         <div class="table-responsive">
         <table class="table table-hover mb-0">
-            <thead>
+            <thead> 
                 <tr>
                     <th style="width:40px;">#</th>
                     <th>Customer Name</th>
@@ -69,7 +69,12 @@
                     <a href="{{ route('customers.show',$c) }}" class="text-decoration-none fw-500">
                         {{ $c->customer_name }}
                     </a>
-                    @if($c->email)
+                    @if($c->description)
+                    <div style="font-size:11px;color:#6c757d;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+                         title="{{ $c->description }}">
+                        {{ $c->description }}
+                    </div>
+                    @elseif($c->email)
                     <div style="font-size:11px;color:#6c757d;">{{ $c->email }}</div>
                     @endif
                 </td>
@@ -80,10 +85,10 @@
                 </td>
                 <td class="text-end">
                     @if($balance > 0.01)
-                        <span class="bal-pos">₹{{ number_format(abs($balance),2) }}</span>
+                        <span class="bal-pos">{{ fmt_amount(abs($balance)) }}</span>
                         <div style="font-size:10px;color:#6c757d;">To collect</div>
                     @elseif($balance < -0.01)
-                        <span class="bal-neg">₹{{ number_format(abs($balance),2) }}</span>
+                        <span class="bal-neg">{{ fmt_amount(abs($balance)) }}</span>
                         <div style="font-size:10px;color:#6c757d;">To pay</div>
                     @else
                         <span class="bal-zero">₹0.00</span>

@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\BalanceSummaryExport;
 use App\Models\Customer;
 use App\Models\Transaction;
 use App\Models\Agent;
 use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ReportController extends Controller
 {
@@ -170,8 +172,15 @@ class ReportController extends Controller
         $this->checkPermission('reports.view');
 
         $customerId = $request->get('customer_id');
-        $from       = $request->get('from', now()->startOfYear()->toDateString());
-        $to         = $request->get('to', now()->toDateString());
+        $viewAll    = $request->boolean('all');
+
+        if ($viewAll) {
+            $from = null;
+            $to   = null;
+        } else {
+            $from = $request->get('from', now()->startOfYear()->toDateString());
+            $to   = $request->get('to', now()->toDateString());
+        }
 
         $customer = $customerId ? Customer::findOrFail($customerId) : null;
 
@@ -180,35 +189,44 @@ class ReportController extends Controller
         $ledger         = collect();
 
         if ($customer) {
-            $transactions = Transaction::forCustomer($customer->id)
-                ->dateRange($from, $to)
+            $txnQuery = Transaction::forCustomer($customer->id)
                 ->with(['paymentType', 'agent', 'createdBy'])
+                ->orderBy('is_opening', 'desc')
                 ->orderBy('transaction_date')
-                ->orderBy('id')
-                ->get();
+                ->orderBy('id');
 
-            $runningBalance = $customer->opening_balance;
+            if (! $viewAll) {
+                $txnQuery->dateRange($from, $to);
+            }
+
+            $transactions = $txnQuery->get();
+
+            // Dr opening = positive (customer owes), Cr opening = negative (we owe)
+            $openingSign    = ($customer->opening_balance_type ?? 'Dr') === 'Dr' ? 1 : -1;
+            $runningBalance = $openingSign * (float) $customer->opening_balance;
+
             $ledger = $transactions->map(function ($txn) use (&$runningBalance) {
-                $runningBalance += ($txn->credit - $txn->debit);
-                return array_merge($txn->toArray(), ['running_balance' => $runningBalance]);
+                $runningBalance += ($txn->debit - $txn->credit); // debit increases balance, credit reduces it
+                return array_merge($txn->toArray(), ['running_balance' => round($runningBalance, 2)]);
             });
 
             ActivityLogger::log(
                 'viewed', 'reports',
                 $customer->id, $customer->customer_name,
-                "Viewed ledger report for {$customer->customer_name} ({$from} to {$to})"
+                "Viewed ledger report for {$customer->customer_name} " .
+                    ($viewAll ? '(all time)' : "({$from} to {$to})")
             );
         }
 
         $customers = Customer::active()->orderBy('customer_name')->pluck('customer_name', 'id');
 
         return view('reports.customer-ledger', compact(
-            'customers', 'customer', 'ledger', 'from', 'to', 'runningBalance'
+            'customers', 'customer', 'ledger', 'from', 'to', 'viewAll', 'runningBalance'
         ));
     }
 
     // ── City-wise report ──────────────────────────────────────
-    public function cityWise(Request $request)
+    public function cityWise_bkp(Request $request)
     {
         $this->checkPermission('reports.view');
 
@@ -253,6 +271,62 @@ class ReportController extends Controller
                         ELSE -customers.opening_balance
                     END
                     + COALESCE(txn.net, 0)
+                ) AS outstanding
+            ")
+            ->groupBy('customers.city', 'customers.state')
+            ->orderByDesc('outstanding')
+            ->get();
+
+        ActivityLogger::log('viewed', 'reports', description: 'Viewed city-wise report');
+
+        return view('reports.city-wise', compact('results'));
+    }
+    
+        public function cityWise(Request $request)
+    {
+        $this->checkPermission('reports.view');
+
+        // ── MUST use the same formula as Dashboard city-wise ──────────────
+        //
+        // Three fixes vs old code:
+        //
+        // 1. opening_balance_signed must be included
+        //    Old: SUM(debit) - SUM(credit)              ← wrong, misses opening
+        //    New: opening_signed + SUM(debit) - SUM(credit) ← correct
+        //
+        // 2. Use correlated subquery (not INNER JOIN) so customers with
+        //    zero transactions but a non-zero opening balance are included
+        //    Old: INNER JOIN transactions ← excludes no-transaction customers
+        //    New: correlated subquery with COALESCE(..., 0) ← includes all
+        //
+        // 3. Respect opening_balance_type (Dr / Cr)
+        //    Old: always added opening_balance
+        //    New: CASE WHEN Dr THEN +amount ELSE -amount END
+        //
+        // outstanding per city = SUM across all city customers of:
+        //   ( signed opening balance ) + ( net of their transactions )
+        // Positive = Dr (city owes us overall)  → "To Collect"
+        // Negative = Cr (we owe city overall)   → "To Pay"
+
+        $txSub = DB::table('transactions')
+            ->whereNull('deleted_at')
+            ->selectRaw('customer_id, SUM(credit) as total_credit, SUM(debit) as total_debit, SUM(debit) - SUM(credit) as net_debit')
+            ->groupBy('customer_id');
+
+        $results = DB::table('customers')
+            ->leftJoinSub($txSub, 't_agg', 't_agg.customer_id', '=', 'customers.id')
+            ->where('customers.is_active', true)
+            ->select('customers.city', 'customers.state')
+            ->selectRaw('COUNT(customers.id) as customer_count')
+            ->selectRaw('COALESCE(SUM(t_agg.total_credit), 0) AS total_credit')
+            ->selectRaw('COALESCE(SUM(t_agg.total_debit), 0) AS total_debit')
+            ->selectRaw("
+                SUM(
+                    (CASE WHEN customers.opening_balance_type = 'Dr'
+                        THEN  customers.opening_balance
+                        ELSE -customers.opening_balance
+                    END)
+                    + COALESCE(t_agg.net_debit, 0)
                 ) AS outstanding
             ")
             ->groupBy('customers.city', 'customers.state')
@@ -319,10 +393,7 @@ class ReportController extends Controller
         return view('reports.activity-logs', compact('logs', 'modules', 'users'));
     }
 
-    // ── Export Balance Summary as CSV (opens in Excel) ────────
-    //
-    // No package needed — PHP streams a CSV with UTF-8 BOM so
-    // Excel opens it correctly with Indian characters and ₹ amounts.
+    // Exports balance summary as a decorated .xlsx file.
     // Accepts the same filters as the balance summary page.
     public function exportBalanceSummary(Request $request)
     {
@@ -358,7 +429,6 @@ class ReportController extends Controller
             })
             ->groupBy($cols);
 
-        // Apply same filters
         $filter = $request->get('filter', 'all');
         if ($filter === 'debit') {
             $query->having('net_balance', '>', 0.009);
@@ -377,109 +447,18 @@ class ReportController extends Controller
         $query->orderBy('customers.customer_name');
         $customers = $query->get();
 
-        // ── Log the export ──────────────────────────────────────
         ActivityLogger::log(
             'exported', 'reports',
-            description: "Exported balance summary CSV ({$customers->count()} customers, filter: {$filter})"
+            description: "Exported balance summary Excel ({$customers->count()} customers, filter: {$filter})"
         );
 
-        // ── Build filename ──────────────────────────────────────
-        $filename = 'balance-summary-' . now()->format('Y-m-d-His') . '.csv';
+        $filename = 'balance-summary-' . now()->format('Y-m-d-His') . '.xlsx';
 
-        // ── Stream CSV response ─────────────────────────────────
-        $headers = [
-            'Content-Type'        => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-            'Pragma'              => 'no-cache',
-            'Cache-Control'       => 'must-revalidate, post-check=0, pre-check=0',
-            'Expires'             => '0',
-        ];
-
-        $callback = function () use ($customers, $filter) {
-            $handle = fopen('php://output', 'w');
-
-            // UTF-8 BOM — makes Excel open the file correctly
-            // without this, ₹ and Indian city names break
-            fwrite($handle, "\xEF\xBB\xBF");
-
-            // ── Report header rows ──────────────────────────────
-            fputcsv($handle, ['Aman Traders — Balance Summary Report']);
-            fputcsv($handle, ['Generated on', now()->format('d M Y, h:i A')]);
-            fputcsv($handle, ['Filter', match($filter) {
-                'debit'  => 'Dr — To Collect',
-                'credit' => 'Cr — To Pay',
-                'zero'   => 'Settled (Zero)',
-                default  => 'All Customers',
-            }]);
-            fputcsv($handle, []); // blank row
-
-            // ── Column headers ──────────────────────────────────
-            fputcsv($handle, [
-                'Sr#',
-                'Customer ID',
-                'Customer Name',
-                'City',
-                'State',
-                'Mobile',
-                'Phone',
-                'Opening Balance',
-                'Opening Type',
-                'Total Credit',
-                'Total Debit',
-                'Net Balance',
-                'Balance Direction',
-            ]);
-
-            // ── Data rows ───────────────────────────────────────
-            $grandCredit  = 0;
-            $grandDebit   = 0;
-            $grandNet     = 0;
-
-            foreach ($customers as $i => $c) {
-                $bal = $c->net_balance;
-                $dir = $bal > 0.01  ? 'Dr - To Collect'
-                     : ($bal < -0.01 ? 'Cr - To Pay'
-                     : 'Settled');
-
-                fputcsv($handle, [
-                    $i + 1,
-                    $c->id,
-                    $c->customer_name,
-                    $c->city ?? '',
-                    $c->state ?? '',
-                    $c->mobile ?? '',
-                    $c->phone ?? '',
-                    number_format((float) $c->opening_balance, 2, '.', ''),
-                    $c->opening_balance_type,
-                    number_format((float) $c->total_credit, 2, '.', ''),
-                    number_format((float) $c->total_debit,  2, '.', ''),
-                    number_format(abs($bal), 2, '.', ''),
-                    $dir,
-                ]);
-
-                $grandCredit += $c->total_credit;
-                $grandDebit  += $c->total_debit;
-                $grandNet    += $bal;
-            }
-
-            // ── Totals row ──────────────────────────────────────
-            fputcsv($handle, []); // blank row
-            fputcsv($handle, [
-                '',
-                '',
-                'TOTAL (' . $customers->count() . ' customers)',
-                '', '', '', '', '', '',
-                number_format($grandCredit, 2, '.', ''),
-                number_format($grandDebit,  2, '.', ''),
-                number_format(abs($grandNet), 2, '.', ''),
-                $grandNet > 0.01  ? 'Dr - To Collect'
-                    : ($grandNet < -0.01 ? 'Cr - To Pay' : 'Settled'),
-            ]);
-
-            fclose($handle);
-        };
-
-        return response()->stream($callback, 200, $headers);
+        return Excel::download(
+            new BalanceSummaryExport($customers, $filter, (bool) config('app.scale_amounts', false)),
+            $filename,
+            \Maatwebsite\Excel\Excel::XLSX
+        );
     }
 
     private function checkPermission(string $permission): void

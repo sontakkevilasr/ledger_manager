@@ -10,13 +10,21 @@
         <form method="GET" class="row g-2 align-items-end">
             <div class="col-md-4">
                 <label class="form-label mb-1" style="font-size:12px;">Customer <span class="text-danger">*</span></label>
-                <select name="customer_id" class="form-select" required>
+                <select name="customer_id" id="customer-select-report" class="form-select" required>
                     <option value="">— Select Customer —</option>
                     @foreach($customers as $id => $name)
                     <option value="{{ $id }}" {{ request('customer_id') == $id ? 'selected' : '' }}>{{ $name }}</option>
                     @endforeach
                 </select>
             </div>
+            @if($viewAll)
+            <div class="col-md-4 d-flex align-items-end gap-2">
+                <span class="badge" style="background:#eff3ff;color:#3b5bdb;font-size:13px;padding:8px 14px;">
+                    <i class="bi bi-infinity me-1"></i>All Transactions
+                </span>
+                <input type="hidden" name="all" value="1">
+            </div>
+            @else
             <div class="col-md-2">
                 <label class="form-label mb-1" style="font-size:12px;">From</label>
                 <input type="date" name="from" class="form-control" value="{{ $from }}">
@@ -25,12 +33,24 @@
                 <label class="form-label mb-1" style="font-size:12px;">To</label>
                 <input type="date" name="to" class="form-control" value="{{ $to }}">
             </div>
+            @endif
             <div class="col-md-2">
                 <button class="btn btn-primary w-100"><i class="bi bi-search me-1"></i>View Ledger</button>
             </div>
             @if($customer)
-            <div class="col-md-2">
-                <button type="button" onclick="window.print()" class="btn btn-outline-secondary w-100">
+            <div class="col-md-auto d-flex gap-2">
+                @if($viewAll)
+                <a href="{{ route('reports.customer-ledger') }}?customer_id={{ $customer->id }}"
+                   class="btn btn-outline-secondary">
+                    <i class="bi bi-calendar-range me-1"></i>Date Filter
+                </a>
+                @else
+                <a href="{{ route('reports.customer-ledger') }}?customer_id={{ $customer->id }}&all=1"
+                   class="btn btn-outline-info">
+                    <i class="bi bi-infinity me-1"></i>All Time
+                </a>
+                @endif
+                <button type="button" onclick="window.print()" class="btn btn-outline-secondary">
                     <i class="bi bi-printer me-1"></i>Print
                 </button>
             </div>
@@ -59,7 +79,11 @@
             <div class="col-md-6 text-md-end">
                 <div style="font-size:12px;color:#6c757d;">Statement Period</div>
                 <div style="font-weight:600;">
-                    {{ \Carbon\Carbon::parse($from)->format('d M Y') }} — {{ \Carbon\Carbon::parse($to)->format('d M Y') }}
+                    @if($viewAll)
+                        <i class="bi bi-infinity me-1"></i>All Transactions
+                    @else
+                        {{ \Carbon\Carbon::parse($from)->format('d M Y') }} — {{ \Carbon\Carbon::parse($to)->format('d M Y') }}
+                    @endif
                 </div>
                 <div style="font-size:12px;color:#6c757d;margin-top:4px;">
                     Printed on {{ now()->format('d M Y, h:i A') }}
@@ -72,34 +96,53 @@
 {{-- ── Summary Row ──────────────────────────────────────────────────────── --}}
 <div class="row g-2 mb-3">
     <div class="col-4">
-        <div class="stat-card text-center py-3">
-            <div class="stat-label">Opening Balance</div>
-            <div class="stat-value" style="font-size:18px;">₹{{ number_format($customer->opening_balance, 2) }}</div>
-        </div>
-    </div>
-    <div class="col-4">
-        <div class="stat-card text-center py-3">
+        <div class="stat-card text-center py-4">
             <div class="stat-label">Total Credit</div>
-            <div class="stat-value" style="font-size:18px;color:#059669;">₹{{ number_format($ledger->sum('credit'), 2) }}</div>
+            <div class="stat-value" style="font-size:18px;color:#059669;">{{ fmt_amount($ledger->sum('credit')) }}</div>
+        </div>
+    </div>
+    <div class="col-4">
+        <div class="stat-card text-center py-4">
+            <div class="stat-label">Total Debit</div>
+            <div class="stat-value" style="font-size:18px;color:#dc2626;">{{ fmt_amount($ledger->sum('debit')) }}</div>
         </div>
     </div>
     <div class="col-4">
         <div class="stat-card text-center py-3">
-            <div class="stat-label">Total Debit</div>
-            <div class="stat-value" style="font-size:18px;color:#dc2626;">₹{{ number_format($ledger->sum('debit'), 2) }}</div>
+            <div class="stat-label">Closing Balance</div>
+            <div class="stat-value {{ $runningBalance > 0.01 ? 'bal-neg' : ($runningBalance < -0.01 ? 'bal-pos' : 'bal-zero') }}" style="font-size:18px;">
+                {{ fmt_amount(abs($runningBalance)) }}
+            </div>
+            <div style="font-size:11px;color:#6b7280;">
+                {{ $runningBalance > 0.01 ? 'Dr' : ($runningBalance < -0.01 ? 'Cr' : 'Settled') }}
+            </div>
         </div>
     </div>
 </div>
 
 {{-- ── Ledger Table ─────────────────────────────────────────────────────── --}}
 <div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <span><i class="bi bi-journal-text me-2"></i>Account Statement — {{ $ledger->count() }} entries</span>
-        <span style="font-size:12px;color:#6c757d;">Closing Balance:
-            <strong class="{{ $runningBalance > 0 ? 'bal-pos' : ($runningBalance < 0 ? 'bal-neg' : 'bal-zero') }}">
-                ₹{{ number_format(abs($runningBalance), 2) }}
-            </strong>
-        </span>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            {{-- Restore badges for hidden columns (no-print) --}}
+            <span id="badge-agent" class="no-print" style="display:none!important;">
+                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:11px;" onclick="showColumn('agent')">
+                    <i class="bi bi-eye-slash me-1"></i>Agent
+                </button>
+            </span>
+            <span id="badge-payment" class="no-print" style="display:none!important;">
+                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:11px;" onclick="showColumn('payment')">
+                    <i class="bi bi-eye-slash me-1"></i>Payment Mode
+                </button>
+            </span>
+            <span style="font-size:12px;color:#6c757d;">Closing Balance:
+                <strong class="{{ $runningBalance > 0 ? 'bal-neg' : ($runningBalance < 0 ? 'bal-pos' : 'bal-zero') }}">
+                    {{ fmt_amount(abs($runningBalance)) }}
+                    {{ $runningBalance > 0.01 ? 'Dr' : ($runningBalance < -0.01 ? 'Cr' : '') }}
+                </strong>
+            </span>
+        </div>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -108,8 +151,12 @@
                 <tr>
                     <th style="width:110px;">Date</th>
                     <th>Description</th>
-                    <th>Agent</th>
-                    <th>Payment Mode</th>
+                    <th class="col-agent" id="th-agent" onclick="hideColumn('agent')" title="Click to hide column" style="cursor:pointer;white-space:nowrap;">
+                        Agent <i class="bi bi-eye no-print" style="font-size:10px;opacity:0.5;"></i>
+                    </th>
+                    <th class="col-payment" id="th-payment" onclick="hideColumn('payment')" title="Click to hide column" style="cursor:pointer;white-space:nowrap;">
+                        Payment Mode <i class="bi bi-eye no-print" style="font-size:10px;opacity:0.5;"></i>
+                    </th>
                     <th class="text-end" style="color:#059669;">Credit</th>
                     <th class="text-end" style="color:#dc2626;">Debit</th>
                     <th class="text-end">Balance</th>
@@ -122,17 +169,18 @@
             <tr style="background:#fffbeb;">
                 <td style="font-size:12px;color:#6c757d;">Opening</td>
                 <td><em style="color:#6c757d;font-size:12px;">Opening / Carry-forward Balance</em></td>
-                <td>—</td><td>—</td>
+                <td class="col-agent">—</td>
+                <td class="col-payment">—</td>
                 <td class="text-end">—</td>
                 <td class="text-end">—</td>
-                <td class="text-end fw-bold">₹{{ number_format($customer->opening_balance, 2) }}</td>
+                <td class="text-end fw-bold">{{ fmt_amount($customer->opening_balance) }}</td>
             </tr>
             @endif
 
             @forelse($ledger as $row)
             <tr>
                 <td style="font-size:12px;white-space:nowrap;">
-                    {{ \Carbon\Carbon::parse($row['transaction_date'])->format('d M Y') }}
+                    {{ $row['transaction_date'] ? \Carbon\Carbon::parse($row['transaction_date'])->format('d M Y') : '' }}
                 </td>
                 <td>
                     {{ $row['description'] ?? '—' }}
@@ -140,38 +188,38 @@
                     <span style="font-size:11px;color:#6c757d;"> — {{ $row['remark'] }}</span>
                     @endif
                 </td>
-                <td style="font-size:12px;color:#6c757d;">
+                <td class="col-agent" style="font-size:12px;color:#6c757d;">
                     {{ $row['agent']['name'] ?? '—' }}
                 </td>
-                <td style="font-size:12px;color:#6c757d;">
+                <td class="col-payment" style="font-size:12px;color:#6c757d;">
                     {{ $row['payment_type']['payment_type'] ?? '—' }}
                 </td>
                 <td class="text-end">
                     @if($row['credit'] > 0)
-                        <span class="bal-pos">₹{{ number_format($row['credit'], 2) }}</span>
+                        <span class="bal-pos">{{ fmt_amount($row['credit']) }}</span>
                     @else
                         <span class="text-muted">—</span>
                     @endif
                 </td>
                 <td class="text-end">
                     @if($row['debit'] > 0)
-                        <span class="bal-neg">₹{{ number_format($row['debit'], 2) }}</span>
+                        <span class="bal-neg">{{ fmt_amount($row['debit']) }}</span>
                     @else
                         <span class="text-muted">—</span>
                     @endif
                 </td>
                 <td class="text-end fw-bold">
-                    <span class="{{ $row['running_balance'] > 0.01 ? 'bal-pos' : ($row['running_balance'] < -0.01 ? 'bal-neg' : 'bal-zero') }}">
-                        ₹{{ number_format(abs($row['running_balance']), 2) }}
+                    <span class="{{ $row['running_balance'] > 0.01 ? 'bal-neg' : ($row['running_balance'] < -0.01 ? 'bal-pos' : 'bal-zero') }}">
+                        {{ fmt_amount(abs($row['running_balance'])) }}
                     </span>
-                    <div style="font-size:9px;color:#9ca3af;">
+                    <div style="font-size:9px;" class="{{ $row['running_balance'] > 0.01 ? 'text-danger' : ($row['running_balance'] < -0.01 ? 'text-success' : 'text-muted') }}">
                         {{ $row['running_balance'] > 0.01 ? 'Dr' : ($row['running_balance'] < -0.01 ? 'Cr' : '') }}
                     </div>
                 </td>
             </tr>
             @empty
             <tr>
-                <td colspan="7" class="text-center py-5 text-muted">
+                <td colspan="7" class="text-center py-5 text-muted" id="empty-row">
                     <i class="bi bi-journal-x display-6 d-block mb-2 opacity-25"></i>
                     No transactions found for this period.
                 </td>
@@ -182,13 +230,16 @@
             @if($ledger->count() > 0)
             <tfoot style="background:#f9fafb;">
                 <tr>
-                    <td colspan="4" class="text-end fw-bold" style="font-size:13px;">Closing Balance</td>
-                    <td class="text-end fw-bold bal-pos">₹{{ number_format($ledger->sum('credit'), 2) }}</td>
-                    <td class="text-end fw-bold bal-neg">₹{{ number_format($ledger->sum('debit'), 2) }}</td>
+                    <td id="tfoot-label-colspan" colspan="4" class="text-end fw-bold" style="font-size:13px;">Closing Balance</td>
+                    <td class="text-end fw-bold bal-pos">{{ fmt_amount($ledger->sum('credit')) }}</td>
+                    <td class="text-end fw-bold bal-neg">{{ fmt_amount($ledger->sum('debit')) }}</td>
                     <td class="text-end fw-bold">
-                        <span class="{{ $runningBalance > 0.01 ? 'bal-pos' : ($runningBalance < -0.01 ? 'bal-neg' : 'bal-zero') }}">
-                            ₹{{ number_format(abs($runningBalance), 2) }}
+                        <span class="{{ $runningBalance > 0.01 ? 'bal-neg' : ($runningBalance < -0.01 ? 'bal-pos' : 'bal-zero') }}">
+                            {{ fmt_amount(abs($runningBalance)) }}
                         </span>
+                        <div style="font-size:10px;" class="{{ $runningBalance > 0.01 ? 'text-danger' : ($runningBalance < -0.01 ? 'text-success' : 'text-muted') }}">
+                            {{ $runningBalance > 0.01 ? 'Dr' : ($runningBalance < -0.01 ? 'Cr' : 'Settled') }}
+                        </div>
                     </td>
                 </tr>
             </tfoot>
@@ -210,9 +261,18 @@
 @endsection
 
 @push('styles')
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css">
 <style>
+#th-agent:hover, #th-payment:hover {
+    background: #f0f4ff;
+    color: #3b5bdb;
+}
+#th-agent:hover .bi-eye, #th-payment:hover .bi-eye {
+    opacity: 1;
+}
 @media print {
-    #sidebar, #topbar, form, .btn { display: none !important; }
+    .no-print, #sidebar, #topbar, form, .btn { display: none !important; }
     #main { margin-left: 0 !important; }
     .page-content { padding: 0 !important; }
     .card { border: 1px solid #dee2e6 !important; box-shadow: none !important; margin-bottom: 12px !important; }
@@ -221,4 +281,51 @@
     .stat-card { border: 1px solid #dee2e6 !important; }
 }
 </style>
+@endpush
+
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+$(document).ready(function () {
+    $('#customer-select-report').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        matcher: function(params, data) {
+            if (!params.term || params.term.trim() === '') return data;
+            return data.text.toLowerCase().indexOf(params.term.trim().toLowerCase()) > -1 ? data : null;
+        }
+    });
+});
+</script>
+<script>
+const colState = { agent: false, payment: false };
+
+function hideColumn(col) {
+    colState[col] = false;
+    const cls = col === 'agent' ? 'col-agent' : 'col-payment';
+    document.querySelectorAll('.' + cls).forEach(el => el.style.display = 'none');
+    document.getElementById('badge-' + col).style.removeProperty('display');
+    updateTfootColspan();
+}
+
+function showColumn(col) {
+    colState[col] = true;
+    const cls = col === 'agent' ? 'col-agent' : 'col-payment';
+    document.querySelectorAll('.' + cls).forEach(el => el.style.display = '');
+    document.getElementById('badge-' + col).style.setProperty('display', 'none', 'important');
+    updateTfootColspan();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    hideColumn('agent');
+    hideColumn('payment');
+});
+
+function updateTfootColspan() {
+    const label = document.getElementById('tfoot-label-colspan');
+    if (!label) return;
+    label.setAttribute('colspan', 2 + (colState.agent ? 1 : 0) + (colState.payment ? 1 : 0));
+}
+</script>
 @endpush

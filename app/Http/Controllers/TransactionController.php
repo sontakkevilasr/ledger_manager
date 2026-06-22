@@ -7,9 +7,11 @@ use App\Models\Transaction;
 use App\Models\PaymentType;
 use App\Models\Agent;
 use App\Services\ActivityLogger;
+use App\Exports\TransactionsExport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class TransactionController extends Controller
 {
@@ -18,9 +20,25 @@ class TransactionController extends Controller
     {
         $this->checkPermission('transactions.view');
 
+        $sortBy  = in_array($request->get('sort_by'), ['transaction_date', 'type', 'credit', 'debit'])
+            ? $request->get('sort_by')
+            : 'transaction_date';
+
+        $hasFilter = $request->filled('customer_id')
+            || $request->filled('type')
+            || $request->filled('agent_id')
+            || $request->filled('from')
+            || $request->filled('to')
+            || $request->filled('search')
+            || $request->filled('amount');
+        $defaultDir = $hasFilter ? 'asc' : 'desc';
+        $sortDir = in_array($request->get('sort_dir'), ['asc', 'desc'])
+            ? $request->get('sort_dir')
+            : $defaultDir;
+
         $query = Transaction::with(['customer', 'paymentType', 'agent', 'createdBy'])
-            ->orderByDesc('transaction_date')
-            ->orderByDesc('id');
+            ->orderBy($sortBy, $sortDir)
+            ->orderBy('id', $sortDir);
 
         // Filter by customer
         $customerId = $request->get('customer_id');
@@ -47,15 +65,29 @@ class TransactionController extends Controller
             $query->where('agent_id', $agentId);
         }
 
+        // Filter by description
+        $search = trim($request->get('search', ''));
+        if ($search !== '') {
+            $query->where('description', 'like', '%' . $search . '%');
+        }
+
+        // Filter by amount
+        $amount = $request->get('amount');
+        if ($amount !== null && $amount !== '') {
+            $query->where(function ($q) use ($amount) {
+                $q->where('credit', $amount)->orWhere('debit', $amount);
+            });
+        }
+
         $transactions = $query->paginate(30)->withQueryString();
 
         // ── Summary cards — MUST apply ALL the same filters as $query ──────
-        // Previously agent_id was missing here, causing cards to show
-        // totals for all transactions even when filtered by agent.
         $summary = Transaction::when($customerId, fn($q) => $q->where('customer_id', $customerId))
             ->when($type,              fn($q) => $q->where('type', ucfirst($type)))
             ->when($from && $to,       fn($q) => $q->dateRange($from, $to))
             ->when($agentId ?? null,   fn($q) => $q->where('agent_id', $agentId))
+            ->when($search !== '',     fn($q) => $q->where('description', 'like', '%' . $search . '%'))
+            ->when($amount !== null && $amount !== '', fn($q) => $q->where(fn($q2) => $q2->where('credit', $amount)->orWhere('debit', $amount)))
             ->selectRaw('SUM(credit) as total_credit, SUM(debit) as total_debit, COUNT(*) as total_count')
             ->first();
 
@@ -64,7 +96,7 @@ class TransactionController extends Controller
         $paymentTypes = PaymentType::where('is_active', true)->pluck('payment_type', 'id');
 
         return view('transactions.index', compact(
-            'transactions', 'summary', 'customers', 'agents', 'paymentTypes'
+            'transactions', 'summary', 'customers', 'agents', 'paymentTypes', 'sortBy', 'sortDir'
         ));
     }
 
@@ -162,8 +194,9 @@ class TransactionController extends Controller
         $customers    = Customer::active()->orderBy('customer_name')->pluck('customer_name', 'id');
         $paymentTypes = PaymentType::where('is_active', true)->pluck('payment_type', 'id');
         $agents       = Agent::where('is_active', true)->orderBy('name')->pluck('name', 'id');
+        $customerName = $transaction->customer->customer_name;
 
-        return view('transactions.edit', compact('transaction', 'customers', 'paymentTypes', 'agents'));
+        return view('transactions.edit', compact('transaction', 'customers', 'paymentTypes', 'agents', 'customerName'));
     }
 
     // ── Update transaction ────────────────────────────────────
@@ -252,6 +285,75 @@ class TransactionController extends Controller
         ]);
     }
 
+    // ── Export (PDF / Excel) ──────────────────────────────────
+    public function export(Request $request, string $format)
+    {
+        $this->checkPermission('transactions.view');
+
+        $rows = $this->filteredQuery($request)
+            ->with(['customer', 'paymentType', 'agent', 'createdBy'])
+            ->get();
+
+        // Determine which optional columns are visible
+        $allowed  = ['agent', 'payment', 'by'];
+        $colParam = $request->filled('cols')
+            ? array_intersect(explode(',', $request->cols), $allowed)
+            : [];
+        $cols = array_fill_keys($allowed, false);
+        foreach ($colParam as $c) $cols[$c] = true;
+
+        $filename = 'transactions_' . now()->format('Ymd_His');
+
+        if ($format === 'excel') {
+            return Excel::download(new TransactionsExport($rows, $cols), $filename . '.xlsx');
+        }
+
+        $filters = [
+            'customer' => $request->filled('customer_id')
+                ? Customer::find($request->customer_id)?->customer_name
+                : null,
+            'from'    => $request->filled('from')  ? $request->from  : null,
+            'to'      => $request->filled('to')    ? $request->to    : null,
+            'type'    => $request->filled('type')  ? $request->type  : null,
+            'agent'   => $request->filled('agent_id')
+                ? Agent::find($request->agent_id)?->name
+                : null,
+        ];
+
+        $pdf = Pdf::loadView('exports.transactions-pdf', compact('rows', 'filters', 'cols'))
+            ->setPaper('a4', 'landscape');
+
+        return $pdf->download($filename . '.pdf');
+    }
+
+    // ── Shared filtered query (used by index + export) ────────
+    private function filteredQuery(Request $request)
+    {
+        $query = Transaction::whereNull('deleted_at');
+
+        if ($request->filled('customer_id')) {
+            $query->where('customer_id', $request->customer_id);
+        }
+        if ($request->filled('type')) {
+            $query->where('type', ucfirst($request->type));
+        }
+        if ($request->filled('from') && $request->filled('to')) {
+            $query->dateRange($request->from, $request->to);
+        }
+        if ($request->filled('agent_id')) {
+            $query->where('agent_id', $request->agent_id);
+        }
+        if ($request->filled('search')) {
+            $query->where('description', 'like', '%' . trim($request->search) . '%');
+        }
+        if ($request->filled('amount')) {
+            $query->where(fn($q) => $q->where('credit', $request->amount)
+                                      ->orWhere('debit', $request->amount));
+        }
+
+        return $query;
+    }
+
     // ── Helper ────────────────────────────────────────────────
     private function checkPermission(string $permission): void
     {
@@ -260,4 +362,5 @@ class TransactionController extends Controller
             abort(403, 'You do not have permission to perform this action.');
         }
     }
+
 }

@@ -43,7 +43,7 @@
         <div class="stat-card text-center">
             <div class="stat-label">Total Volume</div>
             <div class="stat-value" style="font-size:18px;color:#3b5bdb;">
-                ₹{{ number_format($results->sum('total_credit') + $results->sum('total_debit'), 0) }}
+                {{ fmt_amount($results->sum('total_credit') + $results->sum('total_debit')) }}
             </div>
         </div>
     </div>
@@ -91,10 +91,10 @@
                                 {{ $row->transaction_count }}
                             </span>
                         </td>
-                        <td class="text-end bal-pos">₹{{ number_format($row->total_credit, 0) }}</td>
-                        <td class="text-end bal-neg">₹{{ number_format($row->total_debit, 0) }}</td>
+                        <td class="text-end bal-pos">{{ fmt_amount($row->total_credit) }}</td>
+                        <td class="text-end bal-neg">{{ fmt_amount($row->total_debit) }}</td>
                         <td class="text-end fw-bold">
-                            ₹{{ number_format($row->total_credit + $row->total_debit, 0) }}
+                            {{ fmt_amount($row->total_credit + $row->total_debit) }}
                         </td>
                     </tr>
                     @endforeach
@@ -103,10 +103,10 @@
                         <tr>
                             <td colspan="2" class="text-end">Total</td>
                             <td class="text-center">{{ $results->sum('transaction_count') }}</td>
-                            <td class="text-end bal-pos">₹{{ number_format($results->sum('total_credit'), 0) }}</td>
-                            <td class="text-end bal-neg">₹{{ number_format($results->sum('total_debit'), 0) }}</td>
+                            <td class="text-end bal-pos">{{ fmt_amount($results->sum('total_credit')) }}</td>
+                            <td class="text-end bal-neg">{{ fmt_amount($results->sum('total_debit')) }}</td>
                             <td class="text-end">
-                                ₹{{ number_format($results->sum('total_credit') + $results->sum('total_debit'), 0) }}
+                                {{ fmt_amount($results->sum('total_credit') + $results->sum('total_debit')) }}
                             </td>
                         </tr>
                     </tfoot>
@@ -131,6 +131,7 @@
 @push('scripts')
 @if($results->count() > 0)
 <script>
+const DIVISOR = {{ scale_divisor() }};
 new Chart(document.getElementById('agentChart'), {
     type: 'bar',
     data: {
@@ -138,13 +139,13 @@ new Chart(document.getElementById('agentChart'), {
         datasets: [
             {
                 label: 'Credit',
-                data: @json($results->pluck('total_credit')),
+                data: @json($results->pluck('total_credit')).map(v => v/DIVISOR),
                 backgroundColor: 'rgba(5,150,105,.75)',
                 borderRadius: 4,
             },
             {
                 label: 'Debit',
-                data: @json($results->pluck('total_debit')),
+                data: @json($results->pluck('total_debit')).map(v => v/DIVISOR),
                 backgroundColor: 'rgba(220,38,38,.65)',
                 borderRadius: 4,
             }
@@ -156,7 +157,7 @@ new Chart(document.getElementById('agentChart'), {
         scales: {
             y: {
                 beginAtZero: true,
-                ticks: { callback: v => '₹' + Number(v).toLocaleString('en-IN') }
+                ticks: { callback: v => '₹' + v.toLocaleString('en-IN') }
             }
         }
     }

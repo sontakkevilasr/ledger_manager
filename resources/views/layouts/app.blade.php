@@ -74,6 +74,9 @@
         .bal-neg { color:#dc2626; font-weight:600; }
         .bal-zero{ color:#6b7280; }
 
+        tr.tr-credit td { background:#f0fdf4 !important; }
+        tr.tr-debit  td { background:#fff5f5 !important; }
+
         .btn-primary { background:var(--brand); border-color:var(--brand); }
         .btn-primary:hover { background:#2f4bbd; border-color:#2f4bbd; }
 
@@ -147,6 +150,9 @@
         @if(auth()->user()->isSuperAdmin())
         <a href="{{ route('users.index') }}" class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}">
             <i class="bi bi-shield-lock"></i> Users & Roles
+        </a>
+        <a href="{{ route('settings') }}" class="nav-link {{ request()->routeIs('settings*') ? 'active' : '' }}">
+            <i class="bi bi-gear"></i> Settings
         </a>
         @endif
     </div>

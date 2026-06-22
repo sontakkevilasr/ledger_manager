@@ -46,7 +46,7 @@
         <div class="stat-card text-center">
             <div class="stat-label">Grand Total Credit</div>
             <div class="stat-value" style="color:#059669;font-size:20px;">
-                ₹{{ number_format($totals->grand_credit, 0) }}
+                {{ fmt_amount($totals->grand_credit) }}
             </div>
             <div style="font-size:11px;color:#6c757d;">Payments received</div>
         </div>
@@ -55,7 +55,7 @@
         <div class="stat-card text-center">
             <div class="stat-label">Grand Total Debit</div>
             <div class="stat-value" style="color:#dc2626;font-size:20px;">
-                ₹{{ number_format($totals->grand_debit, 0) }}
+                {{ fmt_amount($totals->grand_debit) }}
             </div>
             <div style="font-size:11px;color:#6c757d;">Bills / goods sent</div>
         </div>
@@ -67,7 +67,7 @@
             @php $go = $grandOutstanding; @endphp
             <div class="stat-value" style="font-size:20px;"
                  style="{{ $go > 0 ? 'color:#dc2626' : ($go < 0 ? 'color:#059669' : 'color:#6b7280') }}">
-                ₹{{ number_format(abs($go), 0) }}
+                {{ fmt_amount(abs($go)) }}
             </div>
             <div style="font-size:11px;"
                  class="{{ $go > 0.01 ? 'text-danger' : ($go < -0.01 ? 'text-success' : 'text-muted') }}">
@@ -123,7 +123,7 @@
                 <td class="text-end" style="font-size:12px;">
                     @if($c->opening_balance > 0)
                         <span class="{{ $c->opening_balance_type === 'Dr' ? 'bal-neg' : 'bal-pos' }}">
-                            ₹{{ number_format($c->opening_balance, 0) }}
+                            {{ fmt_amount($c->opening_balance) }}
                         </span>
                         <span style="font-size:10px;margin-left:2px;"
                               class="{{ $c->opening_balance_type === 'Dr' ? 'text-danger' : 'text-success' }}">
@@ -134,13 +134,13 @@
                     @endif
                 </td>
 
-                <td class="text-end bal-pos">₹{{ number_format($c->total_credit, 0) }}</td>
-                <td class="text-end bal-neg">₹{{ number_format($c->total_debit, 0) }}</td>
+                <td class="text-end bal-pos">{{ fmt_amount($c->total_credit) }}</td>
+                <td class="text-end bal-neg">{{ fmt_amount($c->total_debit) }}</td>
 
                 {{-- Net balance: positive = Dr = To Collect, negative = Cr = To Pay --}}
                 <td class="text-end">
                     <span class="fw-bold {{ $bal > 0.01 ? 'bal-neg' : ($bal < -0.01 ? 'bal-pos' : 'bal-zero') }}">
-                        ₹{{ number_format(abs($bal), 2) }}
+                        {{ fmt_amount(abs($bal)) }}
                     </span>
                     <div style="font-size:10px;"
                          class="{{ $bal > 0.01 ? 'text-danger' : ($bal < -0.01 ? 'text-success' : 'text-muted') }}">
@@ -167,11 +167,11 @@
             <tfoot style="background:#f9fafb;">
                 <tr>
                     <td colspan="4" class="text-end fw-bold" style="font-size:12px;">Page Total</td>
-                    <td class="text-end fw-bold bal-pos">₹{{ number_format($customers->sum('total_credit'), 0) }}</td>
-                    <td class="text-end fw-bold bal-neg">₹{{ number_format($customers->sum('total_debit'), 0) }}</td>
+                    <td class="text-end fw-bold bal-pos">{{ fmt_amount($customers->sum('total_credit')) }}</td>
+                    <td class="text-end fw-bold bal-neg">{{ fmt_amount($customers->sum('total_debit')) }}</td>
                     @php $pageNet = $customers->sum('net_balance'); @endphp
                     <td class="text-end fw-bold {{ $pageNet > 0.01 ? 'bal-neg' : ($pageNet < -0.01 ? 'bal-pos' : 'bal-zero') }}">
-                        ₹{{ number_format(abs($pageNet), 2) }}
+                        {{ fmt_amount(abs($pageNet)) }}
                         <div style="font-size:10px;">
                             {{ $pageNet > 0.01 ? 'Dr' : ($pageNet < -0.01 ? 'Cr' : '') }}
                         </div>
