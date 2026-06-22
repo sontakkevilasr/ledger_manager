@@ -148,9 +148,9 @@
         @endif
 
         @if(auth()->user()->isSuperAdmin())
-        <a href="{{ route('users.index') }}" class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}">
+        <!-- <a href="{{ route('users.index') }}" class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}">
             <i class="bi bi-shield-lock"></i> Users & Roles
-        </a>
+        </a> -->
         <a href="{{ route('settings') }}" class="nav-link {{ request()->routeIs('settings*') ? 'active' : '' }}">
             <i class="bi bi-gear"></i> Settings
         </a>
