@@ -181,6 +181,11 @@
     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <span><i class="bi bi-journal-text me-2"></i>Account Ledger</span>
         <div class="d-flex align-items-center gap-2 flex-wrap">
+            @if($canDeleteTxn)
+            <button type="submit" id="delete-selected-txn-btn" class="btn btn-sm btn-outline-danger" style="font-size:12px;" disabled>
+                <i class="bi bi-trash me-1"></i>Delete Selected
+            </button>
+            @endif
             {{-- Restore badges for hidden columns (no-print) --}}
             <span id="badge-agent" class="no-print">
                 <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:11px;" onclick="showColumn('agent')">
@@ -271,6 +276,9 @@
             @forelse($ledger as $row)
             <tr class="{{ !empty($row['is_opening']) ? 'table-light' : '' }}"
                 style="{{ !empty($row['is_opening']) ? 'font-style:italic;' : '' }}">
+                @if($canDeleteTxn)
+                <td><input type="checkbox" name="ids[]" value="{{ $row['id'] }}" class="row-checkbox-txn"></td>
+                @endif
                 <td style="white-space:nowrap;font-size:12px;">
                     {{ $row['transaction_date'] ? \Carbon\Carbon::parse($row['transaction_date'])->format('d M Y') : '' }}
                 </td>
@@ -512,7 +520,7 @@ function showColumn(col) {
 }
 
 function updateTfootColspan() {
-    const span = 2 + (colState.agent ? 1 : 0) + (colState.payment ? 1 : 0);
+    const span = {{ $canDeleteTxn ? 3 : 2 }} + (colState.agent ? 1 : 0) + (colState.payment ? 1 : 0);
     ['tfoot-period-colspan', 'tfoot-closing-colspan'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.setAttribute('colspan', span);
