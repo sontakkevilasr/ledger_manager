@@ -218,6 +218,26 @@ class TransactionController extends Controller
             ->with('success', "Transaction [{$desc}] deleted.");
     }
 
+    // ── Bulk soft delete (manager/super admin only) ───────────
+    public function bulkDestroy(Request $request)
+    {
+        $this->checkPermission('transactions.delete');
+
+        $ids        = $request->input('ids', []);
+        $customerId = $request->input('customer_id');
+
+        if (empty($ids)) {
+            return back()->with('error', 'No transactions selected.');
+        }
+
+        $count = Transaction::whereIn('id', $ids)->count();
+        Transaction::whereIn('id', $ids)->get()->each(fn ($t) => $t->delete()); // soft delete — LogsActivity logs each
+
+        return redirect()
+            ->route('customers.show', $customerId)
+            ->with('success', "{$count} transaction(s) deleted.");
+    }
+
     // ── Quick AJAX: get customer current balance ──────────────
     public function getBalance(Customer $customer)
     {

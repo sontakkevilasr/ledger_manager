@@ -96,7 +96,7 @@ class RolesAndPermissionsSeeder extends Seeder
 
             'manager' => [
                 'customers.view',    'customers.create',  'customers.edit',
-                'transactions.view', 'transactions.create', 'transactions.edit',
+                'transactions.view', 'transactions.create', 'transactions.edit', 'transactions.delete',
                 'reports.view',      'reports.export',
                 'masters.view',
             ],

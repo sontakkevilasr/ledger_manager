@@ -33,6 +33,8 @@ Route::middleware('auth')->group(function () {
         ->name('customers.toggle-status');
 
     // ── Transactions ──────────────────────────────────────────
+    Route::delete('transactions/bulk-destroy', [TransactionController::class, 'bulkDestroy'])
+        ->name('transactions.bulk-destroy');
     Route::resource('transactions', TransactionController::class)->except(['show']);
     Route::get('transactions/{transaction}',        [TransactionController::class, 'show'])
         ->name('transactions.show');

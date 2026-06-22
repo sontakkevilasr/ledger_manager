@@ -4,6 +4,10 @@
 
 @section('content')
 
+@php
+    $canDeleteTxn = auth()->user()->hasPermission('transactions.delete') || auth()->user()->isSuperAdmin();
+@endphp
+
 {{-- ── Customer Header ─────────────────────────────────────────────────── --}}
 <div class="card mb-4">
     <div class="card-body">
@@ -134,18 +138,33 @@
 </div>
 
 {{-- ── Ledger Table ─────────────────────────────────────────────────────── --}}
+<form method="POST" action="{{ route('transactions.bulk-destroy') }}" id="bulk-delete-txn-form"
+    onsubmit="return confirm('Delete selected transactions? This cannot be undone.')">
+    @csrf
+    @method('DELETE')
+    <input type="hidden" name="customer_id" value="{{ $customer->id }}">
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <span><i class="bi bi-journal-text me-2"></i>Account Ledger</span>
-        <span style="font-size:12px;color:#6c757d;">
-            {{ \Carbon\Carbon::parse($from)->format('d M Y') }} — {{ \Carbon\Carbon::parse($to)->format('d M Y') }}
-        </span>
+        <div class="d-flex align-items-center gap-2">
+            @if($canDeleteTxn)
+            <button type="submit" id="delete-selected-txn-btn" class="btn btn-sm btn-outline-danger" style="font-size:12px;" disabled>
+                <i class="bi bi-trash me-1"></i>Delete Selected
+            </button>
+            @endif
+            <span style="font-size:12px;color:#6c757d;">
+                {{ \Carbon\Carbon::parse($from)->format('d M Y') }} — {{ \Carbon\Carbon::parse($to)->format('d M Y') }}
+            </span>
+        </div>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
         <table class="table table-hover mb-0">
             <thead>
                 <tr>
+                    @if($canDeleteTxn)
+                    <th style="width:30px;"><input type="checkbox" id="select-all-txn-checkbox"></th>
+                    @endif
                     <th style="width:110px;">Date</th>
                     <th>Description</th>
                     <th>Agent</th>
@@ -161,6 +180,9 @@
             {{-- Balance Brought Forward row ─────────────────────────────── --}}
             {{-- This is the correct balance at the START of the filtered period --}}
             <tr style="background:#f9fafb;font-style:italic;">
+                @if($canDeleteTxn)
+                <td></td>
+                @endif
                 <td style="font-size:12px;color:#6c757d;">B/F</td>
                 <td style="font-size:12px;color:#6c757d;">
                     Balance brought forward
@@ -197,6 +219,9 @@
             {{-- Transaction rows ─────────────────────────────────────────── --}}
             @forelse($ledger as $row)
             <tr>
+                @if($canDeleteTxn)
+                <td><input type="checkbox" name="ids[]" value="{{ $row['id'] }}" class="row-checkbox-txn"></td>
+                @endif
                 <td style="white-space:nowrap;font-size:12px;">
                     {{ \Carbon\Carbon::parse($row['transaction_date'])->format('d M Y') }}
                 </td>
@@ -245,7 +270,7 @@
             </tr>
             @empty
             <tr>
-                <td colspan="8" class="text-center py-5 text-muted">
+                <td colspan="{{ $canDeleteTxn ? 9 : 8 }}" class="text-center py-5 text-muted">
                     <i class="bi bi-journal-x display-6 d-block mb-2 opacity-25"></i>
                     No transactions for this period.
                     @if(auth()->user()->hasPermission('transactions.create') || auth()->user()->isSuperAdmin())
@@ -260,14 +285,14 @@
             {{-- Footer: period totals + closing balance ──────────────────── --}}
             <tfoot style="background:#f9fafb;">
                 <tr>
-                    <td colspan="4" class="text-end fw-bold" style="font-size:12px;">Period Total</td>
+                    <td colspan="{{ $canDeleteTxn ? 5 : 4 }}" class="text-end fw-bold" style="font-size:12px;">Period Total</td>
                     <td class="text-end fw-bold bal-pos">₹{{ number_format($totalCredit, 2) }}</td>
                     <td class="text-end fw-bold bal-neg">₹{{ number_format($totalDebit, 2) }}</td>
                     <td class="text-end"></td>
                     <td></td>
                 </tr>
                 <tr style="border-top:2px solid #e8ecf0;">
-                    <td colspan="4" class="text-end fw-bold" style="font-size:13px;">Closing Balance</td>
+                    <td colspan="{{ $canDeleteTxn ? 5 : 4 }}" class="text-end fw-bold" style="font-size:13px;">Closing Balance</td>
                     <td colspan="2"></td>
                     <td class="text-end fw-bold">
                         @php $cb = $closingBalance; @endphp
@@ -287,5 +312,29 @@
         </div>
     </div>
 </div>
+</form>
+
+@if($canDeleteTxn)
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const selectAll  = document.getElementById('select-all-txn-checkbox');
+    const deleteBtn  = document.getElementById('delete-selected-txn-btn');
+    const checkboxes = () => Array.from(document.querySelectorAll('.row-checkbox-txn'));
+
+    function refreshDeleteBtn() {
+        deleteBtn.disabled = !checkboxes().some(cb => cb.checked);
+    }
+
+    selectAll?.addEventListener('change', function () {
+        checkboxes().forEach(cb => cb.checked = selectAll.checked);
+        refreshDeleteBtn();
+    });
+
+    checkboxes().forEach(cb => cb.addEventListener('change', refreshDeleteBtn));
+});
+</script>
+@endpush
+@endif
 
 @endsection
