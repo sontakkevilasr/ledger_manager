@@ -12,13 +12,12 @@
         body {
             min-height: 100vh;
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            display: flex;
             background: #0f1117;
         }
 
         /* ── Left panel ────────────────────────────────────── */
         .left-panel {
-            flex: 1;
+            width: 100%;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -169,16 +168,22 @@
             margin-top: 24px;
         }
 
-        /* ── Right panel ───────────────────────────────────── */
+        /* ── Right panel (sits below the left panel) ────────── */
         .right-panel {
-            width: 480px;
-            flex-shrink: 0;
+            width: 100%;
+            min-height: 100vh;
             background: #fff;
             display: flex;
             flex-direction: column;
             justify-content: center;
-            padding: 56px 52px;
+            align-items: center;
+            padding: 56px 24px;
             position: relative;
+        }
+
+        .right-panel-inner {
+            width: 100%;
+            max-width: 420px;
         }
 
         .signin-label {
@@ -328,9 +333,8 @@
         .trust-item i { font-size: 13px; color: #d1d5db; }
 
         /* Responsive */
-        @media (max-width: 900px) {
-            .left-panel { display: none; }
-            .right-panel { width: 100%; padding: 40px 28px; }
+        @media (max-width: 600px) {
+            .right-panel { padding: 40px 20px; }
         }
     </style>
 </head>
@@ -401,6 +405,7 @@
 
 <!-- ── Right Panel ─────────────────────────────────────────────────────── -->
 <div class="right-panel">
+<div class="right-panel-inner">
 
     <div class="signin-label">Welcome back</div>
     <h1 class="signin-title">Sign in to your account</h1>
@@ -436,7 +441,6 @@
                     value="{{ old('email') }}"
                     placeholder="you@example.com"
                     autocomplete="email"
-                    autofocus
                     required>
             </div>
         </div>
@@ -491,6 +495,7 @@
         </div>
     </div>
 
+</div>
 </div>
 
 <script>
