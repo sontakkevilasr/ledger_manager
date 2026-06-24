@@ -73,9 +73,16 @@
         .bal-pos { color:#059669; font-weight:600; }
         .bal-neg { color:#dc2626; font-weight:600; }
         .bal-zero{ color:#6b7280; }
-
-        tr.tr-credit td { background:#f0fdf4 !important; }
-        tr.tr-debit  td { background:#fff5f5 !important; }
+        /* old v1: #f0fdf4, #fff5f5 */
+        /* old v2: tr.tr-credit td { background:#bbf7d0 !important; } */
+        /* old v2: tr.tr-debit  td { background:#fecaca !important; } */
+        
+        tr.tr-credit td { background:#86efac !important; }
+        tr.tr-debit  td { background:#fca5a5 !important; }
+        tr.tr-credit:hover td { background:#4ade80 !important; }
+        tr.tr-debit:hover  td { background:#f87171 !important; }
+        tr.tr-credit td:first-child { border-left:4px solid #16a34a; }
+        tr.tr-debit  td:first-child { border-left:4px solid #dc2626; }
 
         .btn-primary { background:var(--brand); border-color:var(--brand); }
         .btn-primary:hover { background:#2f4bbd; border-color:#2f4bbd; }
