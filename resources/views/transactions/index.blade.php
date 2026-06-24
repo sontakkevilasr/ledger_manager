@@ -209,12 +209,33 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css">
 <style>
+/* old v1:
+#th-agent:hover, #th-payment:hover, #th-by:hover { background: #f0f4ff; color: #3b5bdb; }
+#th-agent:hover .bi-eye, #th-payment:hover .bi-eye, #th-by:hover .bi-eye { opacity: 1; }
+*/
+
+/* Table header — darker, crisper */
+.table thead th {
+    background: #d1d5db !important;
+    color: #111827 !important;
+    border-bottom: 2px solid #9ca3af !important;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+}
+
+/* Row bottom borders */
+.table tbody tr { border-bottom: 1px solid rgba(0,0,0,.08); }
+
+/* Sortable / hideable header hover */
 #th-agent:hover, #th-payment:hover, #th-by:hover {
-    background: #f0f4ff;
-    color: #3b5bdb;
+    background: #bfdbfe !important;
+    color: #1d4ed8 !important;
 }
 #th-agent:hover .bi-eye, #th-payment:hover .bi-eye,
 #th-by:hover .bi-eye { opacity: 1; }
+
 @media print {
     .no-print { display: none !important; }
 }
