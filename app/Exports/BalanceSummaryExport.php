@@ -3,6 +3,7 @@
 namespace App\Exports;
 
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithTitle;
@@ -58,11 +59,13 @@ class BalanceSummaryExport implements FromArray, WithEvents, WithTitle, WithColu
 
         $scaleVal = fn (float $v): float => $scaleOn ? round($v / 100, 2) : round($v, 2);
 
+        $companyName = DB::table('settings')->where('key', 'company_name')->value('value') ?: 'Company';
+
         $row = 1;
 
         // ── Title ─────────────────────────────────────────────────
         $sheet->mergeCells("A{$row}:{$lastCol}{$row}");
-        $sheet->setCellValue("A{$row}", 'Aman Traders — Balance Summary Report');
+        $sheet->setCellValue("A{$row}", "{$companyName} — Balance Summary Report");
         $sheet->getStyle("A{$row}")->applyFromArray([
             'font'      => ['bold' => true, 'size' => 14, 'color' => ['rgb' => 'FFFFFF']],
             'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1E3A5F']],

@@ -85,10 +85,15 @@
     <div class="card-header d-flex justify-content-between align-items-center">
         <span><i class="bi bi-bar-chart-line me-2"></i>{{ $customers->total() }} Customers</span>
         @if(auth()->user()->hasPermission('reports.export') || auth()->user()->isSuperAdmin())
-        <a href="{{ route('reports.balance-summary.export', request()->only(['filter','city','search'])) }}"
-           class="btn btn-sm btn-outline-success">
-            <i class="bi bi-file-earmark-excel me-1"></i>Export Excel
-        </a>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#printColsModal">
+                <i class="bi bi-printer me-1"></i>Print
+            </button>
+            <a href="{{ route('reports.balance-summary.export', request()->only(['filter','city','search'])) }}"
+               class="btn btn-sm btn-outline-success">
+                <i class="bi bi-file-earmark-excel me-1"></i>Export Excel
+            </a>
+        </div>
         @endif
     </div>
     <div class="card-body p-0">
@@ -97,13 +102,13 @@
             <thead>
                 <tr>
                     <th>Customer</th>
-                    <th>City</th>
-                    <th>Mobile</th>
-                    <th class="text-end">Opening Bal.</th>
-                    <th class="text-end" style="color:#059669;">Total Credit</th>
-                    <th class="text-end" style="color:#dc2626;">Total Debit</th>
-                    <th class="text-end">Net Balance</th>
-                    <th class="text-center">Actions</th>
+                    <th class="col-city">City</th>
+                    <th class="col-mobile">Mobile</th>
+                    <th class="text-end col-opening">Opening Bal.</th>
+                    <th class="text-end col-credit" style="color:#059669;">Total Credit</th>
+                    <th class="text-end col-debit" style="color:#dc2626;">Total Debit</th>
+                    <th class="text-end col-net">Net Balance</th>
+                    <th class="text-center col-actions">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -116,11 +121,11 @@
                         {{ $c->customer_name }}
                     </a>
                 </td>
-                <td style="color:#6c757d;font-size:12px;">{{ $c->city }}</td>
-                <td style="font-size:12px;">{{ $c->mobile ?: '—' }}</td>
+                <td class="col-city" style="color:#6c757d;font-size:12px;">{{ $c->city }}</td>
+                <td class="col-mobile" style="font-size:12px;">{{ $c->mobile ?: '—' }}</td>
 
                 {{-- Opening balance with Dr/Cr label --}}
-                <td class="text-end" style="font-size:12px;">
+                <td class="text-end col-opening" style="font-size:12px;">
                     @if($c->opening_balance > 0)
                         <span class="{{ $c->opening_balance_type === 'Dr' ? 'bal-neg' : 'bal-pos' }}">
                             {{ fmt_amount($c->opening_balance) }}
@@ -134,11 +139,11 @@
                     @endif
                 </td>
 
-                <td class="text-end bal-pos">{{ fmt_amount($c->total_credit) }}</td>
-                <td class="text-end bal-neg">{{ fmt_amount($c->total_debit) }}</td>
+                <td class="text-end col-credit bal-pos">{{ fmt_amount($c->total_credit) }}</td>
+                <td class="text-end col-debit bal-neg">{{ fmt_amount($c->total_debit) }}</td>
 
                 {{-- Net balance: positive = Dr = To Collect, negative = Cr = To Pay --}}
-                <td class="text-end">
+                <td class="text-end col-net">
                     <span class="fw-bold {{ $bal > 0.01 ? 'bal-neg' : ($bal < -0.01 ? 'bal-pos' : 'bal-zero') }}">
                         {{ fmt_amount(abs($bal)) }}
                     </span>
@@ -150,7 +155,7 @@
                         @endif
                     </div>
                 </td>
-                <td class="text-center">
+                <td class="text-center col-actions">
                     <a href="{{ route('customers.show', $c->id) }}"
                        class="btn btn-sm btn-outline-primary" style="font-size:11px;">
                         <i class="bi bi-journal-text"></i> Ledger
@@ -166,17 +171,20 @@
             @if($customers->count() > 0)
             <tfoot style="background:#f9fafb;">
                 <tr>
-                    <td colspan="4" class="text-end fw-bold" style="font-size:12px;">Page Total</td>
-                    <td class="text-end fw-bold bal-pos">{{ fmt_amount($customers->sum('total_credit')) }}</td>
-                    <td class="text-end fw-bold bal-neg">{{ fmt_amount($customers->sum('total_debit')) }}</td>
+                    <td class="fw-bold" style="font-size:12px;">Page Total ({{ $customers->count() }})</td>
+                    <td class="col-city"></td>
+                    <td class="col-mobile"></td>
+                    <td class="col-opening"></td>
+                    <td class="text-end fw-bold col-credit bal-pos">{{ fmt_amount($customers->sum('total_credit')) }}</td>
+                    <td class="text-end fw-bold col-debit bal-neg">{{ fmt_amount($customers->sum('total_debit')) }}</td>
                     @php $pageNet = $customers->sum('net_balance'); @endphp
-                    <td class="text-end fw-bold {{ $pageNet > 0.01 ? 'bal-neg' : ($pageNet < -0.01 ? 'bal-pos' : 'bal-zero') }}">
+                    <td class="text-end fw-bold col-net {{ $pageNet > 0.01 ? 'bal-neg' : ($pageNet < -0.01 ? 'bal-pos' : 'bal-zero') }}">
                         {{ fmt_amount(abs($pageNet)) }}
                         <div style="font-size:10px;">
                             {{ $pageNet > 0.01 ? 'Dr' : ($pageNet < -0.01 ? 'Cr' : '') }}
                         </div>
                     </td>
-                    <td></td>
+                    <td class="col-actions"></td>
                 </tr>
             </tfoot>
             @endif
@@ -188,4 +196,93 @@
     @endif
 </div>
 
+{{-- ── Print column picker ─────────────────────────────────────────────── --}}
+<div class="modal fade" id="printColsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title"><i class="bi bi-printer me-1"></i>Choose columns to print</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-2" style="font-size:12px;">Customer name is always printed. Uncheck any columns you don't want on the printout.</p>
+                <div class="form-check">
+                    <input class="form-check-input print-col-check" type="checkbox" value="city" id="pcCity" checked>
+                    <label class="form-check-label" for="pcCity">City</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input print-col-check" type="checkbox" value="mobile" id="pcMobile" checked>
+                    <label class="form-check-label" for="pcMobile">Mobile</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input print-col-check" type="checkbox" value="opening" id="pcOpening" checked>
+                    <label class="form-check-label" for="pcOpening">Opening Balance</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input print-col-check" type="checkbox" value="credit" id="pcCredit" checked>
+                    <label class="form-check-label" for="pcCredit">Total Credit</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input print-col-check" type="checkbox" value="debit" id="pcDebit" checked>
+                    <label class="form-check-label" for="pcDebit">Total Debit</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input print-col-check" type="checkbox" value="net" id="pcNet" checked>
+                    <label class="form-check-label" for="pcNet">Net Balance</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm" id="btnDoPrint">
+                    <i class="bi bi-printer me-1"></i>Print
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
+
+@push('styles')
+<style>
+@media print {
+    #sidebar, #topbar, .btn, form, .card-footer { display: none !important; }
+    #main { margin-left: 0 !important; }
+    .card { border: none !important; }
+    .col-actions { display: none !important; }
+    body.hide-city   .col-city,
+    body.hide-mobile  .col-mobile,
+    body.hide-opening .col-opening,
+    body.hide-credit  .col-credit,
+    body.hide-debit   .col-debit,
+    body.hide-net     .col-net { display: none !important; }
+}
+</style>
+@endpush
+
+@push('scripts')
+<script>
+(function () {
+    const optionalCols = ['city', 'mobile', 'opening', 'credit', 'debit', 'net'];
+
+    document.getElementById('btnDoPrint').addEventListener('click', function () {
+        const checked = new Set(
+            Array.from(document.querySelectorAll('.print-col-check:checked')).map(cb => cb.value)
+        );
+
+        optionalCols.forEach(col => {
+            document.body.classList.toggle('hide-' + col, !checked.has(col));
+        });
+
+        const modalEl = document.getElementById('printColsModal');
+        bootstrap.Modal.getInstance(modalEl)?.hide();
+
+        setTimeout(() => window.print(), 300);
+    });
+
+    window.addEventListener('afterprint', function () {
+        optionalCols.forEach(col => document.body.classList.remove('hide-' + col));
+    });
+})();
+</script>
+@endpush
