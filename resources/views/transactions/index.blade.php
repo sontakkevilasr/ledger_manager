@@ -162,9 +162,9 @@
                     </a>
                 </td>
                 <td style="font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                    {{ $t->description ?? '—' }}
+                    {{ $t->description ?? '—' }}<br><div style="font-size:11px;color:#6c757d;">{{ $t->remark }}</div>
                 </td>
-                <td class="col-agent" style="font-size:12px;color:#6c757d;">{{ $t->agent?->name ?? $t->remark ?? '—' }}</td>
+                <td class="col-agent" style="font-size:12px;color:#6c757d;">{{ $t->agent?->name ?? $t->agent?->name ?? '—' }}</td>
                 <td class="col-payment" style="font-size:12px;color:#6c757d;">{{ $t->paymentType?->payment_type ?? '—' }}</td>
                 <td class="text-center">
                     <span class="badge {{ $t->type==='Credit' ? 'badge-credit' : 'badge-debit' }}" style="font-size:10px;">
