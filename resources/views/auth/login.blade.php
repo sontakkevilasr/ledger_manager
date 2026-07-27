@@ -441,6 +441,7 @@
                     value="{{ old('email') }}"
                     placeholder="you@example.com"
                     autocomplete="email"
+                    maxlength="255"
                     required>
             </div>
         </div>
@@ -457,6 +458,7 @@
                     class="field-input {{ $errors->has('password') ? 'is-invalid' : '' }}"
                     placeholder="Enter your password"
                     autocomplete="current-password"
+                    maxlength="255"
                     required>
                 <button type="button" class="field-toggle" onclick="togglePwd()" aria-label="Toggle password">
                     <i class="bi bi-eye" id="pwd-icon"></i>

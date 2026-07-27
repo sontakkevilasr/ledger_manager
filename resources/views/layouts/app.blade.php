@@ -63,7 +63,8 @@
         .stat-icon  { width:42px; height:42px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; }
 
         .table th { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.4px; color:#6c757d; border-bottom:2px solid #e8ecf0; background:#f9fafb; }
-        .table td { vertical-align:middle; font-size:13px; }
+        .table td { vertical-align:middle; font-size:13px; padding-top:10px; padding-bottom:10px; }
+        .table tbody tr { border-bottom:1px solid rgba(0,0,0,.06); }
 
         .badge-credit   { background:#d1fae5; color:#065f46; font-weight:500; }
         .badge-debit    { background:#fee2e2; color:#991b1b; font-weight:500; }
@@ -73,14 +74,12 @@
         .bal-pos { color:#059669; font-weight:600; }
         .bal-neg { color:#dc2626; font-weight:600; }
         .bal-zero{ color:#6b7280; }
-        /* old v1: #f0fdf4, #fff5f5 */
-        /* old v2: tr.tr-credit td { background:#bbf7d0 !important; } */
-        /* old v2: tr.tr-debit  td { background:#fecaca !important; } */
-        
-        tr.tr-credit td { background:#86efac !important; }
-        tr.tr-debit  td { background:#fca5a5 !important; }
-        tr.tr-credit:hover td { background:#4ade80 !important; }
-        tr.tr-debit:hover  td { background:#f87171 !important; }
+
+        tr.tr-credit td, tr.tr-debit td { transition:background-color .12s ease; }
+        tr.tr-credit td { background:#d7f2df !important; }
+        tr.tr-debit  td { background:#fbdedb !important; }
+        tr.tr-credit:hover td { background:#c3ebcf !important; }
+        tr.tr-debit:hover  td { background:#f8c9c4 !important; }
         tr.tr-credit td:first-child { border-left:4px solid #16a34a; }
         tr.tr-debit  td:first-child { border-left:4px solid #dc2626; }
 
