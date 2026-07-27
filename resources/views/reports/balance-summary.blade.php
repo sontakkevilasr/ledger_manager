@@ -207,11 +207,11 @@
             <div class="modal-body">
                 <p class="text-muted mb-2" style="font-size:12px;">Customer name is always printed. Uncheck any columns you don't want on the printout.</p>
                 <div class="form-check">
-                    <input class="form-check-input print-col-check" type="checkbox" value="city" id="pcCity" checked>
+                    <input class="form-check-input print-col-check" type="checkbox" value="city" id="pcCity">
                     <label class="form-check-label" for="pcCity">City</label>
                 </div>
                 <div class="form-check">
-                    <input class="form-check-input print-col-check" type="checkbox" value="mobile" id="pcMobile" checked>
+                    <input class="form-check-input print-col-check" type="checkbox" value="mobile" id="pcMobile">
                     <label class="form-check-label" for="pcMobile">Mobile</label>
                 </div>
                 <div class="form-check">
@@ -245,6 +245,9 @@
 
 @push('styles')
 <style>
+@media screen {
+    .col-city, .col-mobile { display: none !important; }
+}
 @media print {
     #sidebar, #topbar, .btn, form, .card-footer { display: none !important; }
     #main { margin-left: 0 !important; }
