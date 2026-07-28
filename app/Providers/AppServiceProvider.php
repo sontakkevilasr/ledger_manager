@@ -57,6 +57,20 @@ class AppServiceProvider extends ServiceProvider
         }
 
         config(['app.allow_transaction_edit' => $allowTxnEdit]);
+
+        // ── Load company_name setting ──────────────────────────────────────
+        try {
+            $companyName = cache()->remember('setting.company_name', 60, function () {
+                return DB::table('settings')
+                    ->where('key', 'company_name')
+                    ->value('value') ?: 'Company';
+            });
+        } catch (\Exception $e) {
+            $companyName = 'Company';
+        }
+
+        config(['app.company_name' => $companyName]);
+
 	Paginator::useBootstrap();
     }
 }

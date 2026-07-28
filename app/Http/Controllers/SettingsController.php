@@ -59,6 +59,7 @@ class SettingsController extends Controller
         cache()->forget('setting.scale_amounts');
         cache()->forget('setting.allow_customer_purge');
         cache()->forget('setting.allow_transaction_edit');
+        cache()->forget('setting.company_name');
 
         // Log the change
         \App\Services\ActivityLogger::log(

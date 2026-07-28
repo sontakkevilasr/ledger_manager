@@ -196,8 +196,8 @@
         const fmtAmt  = '₹' + scaled.toLocaleString('en-IN', { minimumFractionDigits: 2 });
 
         helpText.innerHTML = isDr
-            ? `<span style="color:#dc2626;"><strong>Dr ${fmtAmt}</strong> — Customer owes Aman Traders</span>`
-            : `<span style="color:#059669;"><strong>Cr ${fmtAmt}</strong> — Aman Traders owes customer</span>`;
+            ? `<span style="color:#dc2626;"><strong>Dr ${fmtAmt}</strong> — Customer owes {{ company_name() }}</span>`
+            : `<span style="color:#059669;"><strong>Cr ${fmtAmt}</strong> — {{ company_name() }} owes customer</span>`;
     }
 
     if (drRadio) drRadio.addEventListener('change', updateHelp);

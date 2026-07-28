@@ -57,6 +57,22 @@ if (! function_exists('raw_amount')) {
     }
 }
 
+if (! function_exists('company_name')) {
+    /**
+     * Returns the company name configured on the Settings page.
+     *
+     * Loaded into config('app.company_name') once per request by
+     * AppServiceProvider (cached for 60s, cleared on settings save).
+     *
+     * Usage in Blade:
+     *   {{ company_name() }}   → "Aman Traders" (or whatever is set)
+     */
+    function company_name(): string
+    {
+        return config('app.company_name', 'Company');
+    }
+}
+
 if (! function_exists('scale_divisor')) {
     /**
      * Returns the active divisor as an integer for use in JavaScript.
