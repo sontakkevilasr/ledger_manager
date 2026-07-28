@@ -102,7 +102,7 @@
             </label>
             <input type="text" name="company_name" class="form-control"
                 value="{{ $settings['company_name']->value }}"
-                placeholder="Aman Traders">
+                placeholder="e.g. Your Company Name">
             <div class="form-text">{{ $settings['company_name']->description }}</div>
         </div>
 

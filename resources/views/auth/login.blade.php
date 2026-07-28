@@ -393,7 +393,7 @@
             <div class="author">
                 <div class="author-avatar">AT</div>
                 <div>
-                    <div class="author-name">Aman Traders</div>
+                    <div class="author-name">{{ company_name() }}</div>
                     <div class="author-title">Wholesale Trading, Nagpur</div>
                 </div>
             </div>

@@ -3,7 +3,6 @@
 namespace App\Exports;
 
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithTitle;
@@ -59,7 +58,7 @@ class BalanceSummaryExport implements FromArray, WithEvents, WithTitle, WithColu
 
         $scaleVal = fn (float $v): float => $scaleOn ? round($v / 100, 2) : round($v, 2);
 
-        $companyName = DB::table('settings')->where('key', 'company_name')->value('value') ?: 'Company';
+        $companyName = company_name();
 
         $row = 1;
 

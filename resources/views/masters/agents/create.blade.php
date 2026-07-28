@@ -71,7 +71,7 @@
             <i class="bi bi-info-circle me-1 text-primary"></i>What is an Agent?
         </div>
         <div style="font-size:12px;color:#6c757d;line-height:1.7;">
-            Agents are the people who handle or carry transactions on behalf of Aman Traders —
+            Agents are the people who handle or carry transactions on behalf of {{ company_name() }} —
             such as <strong>HASINUDDIN</strong>, <strong>ZUBAIR BHAI</strong>, etc.
             When adding a transaction, you can select the agent who handled it.
             This helps you generate agent-wise reports.
