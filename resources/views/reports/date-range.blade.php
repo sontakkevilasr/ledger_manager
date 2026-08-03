@@ -98,7 +98,7 @@
                     <th class="text-end" style="color:#059669;">Credit</th>
                     <th class="text-end" style="color:#dc2626;">Debit</th>
                     <th class="text-end">Closing Balance</th>
-                    <th class="text-center">View</th>
+                    <th class="text-center no-print">View</th>
                 </tr>
             </thead>
             <tbody>
@@ -133,7 +133,7 @@
                         {{ $bal > 0.01 ? 'Dr — To Collect' : ($bal < -0.01 ? 'Cr — To Pay' : 'Settled') }}
                     </div>
                 </td>
-                <td class="text-center">
+                <td class="text-center no-print">
                     <a href="{{ route('reports.customer-ledger') }}?customer_id={{ $row->id }}&from={{ $from }}&to={{ $to }}"
                        class="btn btn-sm btn-outline-primary" style="font-size:11px;" title="View how this balance was calculated">
                         <i class="bi bi-journal-text"></i>
@@ -159,7 +159,7 @@
                             {{ fmt_amount(abs($tcl)) }}
                         </span>
                     </td>
-                    <td></td>
+                    <td class="no-print"></td>
                 </tr>
             </tfoot>
         </table>
@@ -182,7 +182,7 @@
 @push('styles')
 <style>
 @media print {
-    #sidebar, #topbar, .btn, form { display: none !important; }
+    #sidebar, #topbar, .btn, form, .no-print { display: none !important; }
     #main { margin-left: 0 !important; }
     .card { border: none !important; }
 }
