@@ -98,23 +98,23 @@
     <div class="col-4">
         <div class="stat-card text-center py-4">
             <div class="stat-label">Total Credit</div>
-            <div class="stat-value" style="font-size:18px;color:#059669;">{{ fmt_amount($ledger->sum('credit')) }}</div>
+            <div class="stat-value" style="font-size:18px;color:#059669;">{{ fmt_amount($totalCredit) }}</div>
         </div>
     </div>
     <div class="col-4">
         <div class="stat-card text-center py-4">
             <div class="stat-label">Total Debit</div>
-            <div class="stat-value" style="font-size:18px;color:#dc2626;">{{ fmt_amount($ledger->sum('debit')) }}</div>
+            <div class="stat-value" style="font-size:18px;color:#dc2626;">{{ fmt_amount($totalDebit) }}</div>
         </div>
     </div>
     <div class="col-4">
         <div class="stat-card text-center py-3">
             <div class="stat-label">Closing Balance</div>
-            <div class="stat-value {{ $runningBalance > 0.01 ? 'bal-neg' : ($runningBalance < -0.01 ? 'bal-pos' : 'bal-zero') }}" style="font-size:18px;">
-                {{ fmt_amount(abs($runningBalance)) }}
+            <div class="stat-value {{ $closingBalance > 0.01 ? 'bal-neg' : ($closingBalance < -0.01 ? 'bal-pos' : 'bal-zero') }}" style="font-size:18px;">
+                {{ fmt_amount(abs($closingBalance)) }}
             </div>
             <div style="font-size:11px;color:#6b7280;">
-                {{ $runningBalance > 0.01 ? 'Dr' : ($runningBalance < -0.01 ? 'Cr' : 'Settled') }}
+                {{ $closingBalance > 0.01 ? 'Dr' : ($closingBalance < -0.01 ? 'Cr' : 'Settled') }}
             </div>
         </div>
     </div>
@@ -137,9 +137,9 @@
                 </button>
             </span>
             <span style="font-size:12px;color:#6c757d;">Closing Balance:
-                <strong class="{{ $runningBalance > 0 ? 'bal-neg' : ($runningBalance < 0 ? 'bal-pos' : 'bal-zero') }}">
-                    {{ fmt_amount(abs($runningBalance)) }}
-                    {{ $runningBalance > 0.01 ? 'Dr' : ($runningBalance < -0.01 ? 'Cr' : '') }}
+                <strong class="{{ $closingBalance > 0 ? 'bal-neg' : ($closingBalance < 0 ? 'bal-pos' : 'bal-zero') }}">
+                    {{ fmt_amount(abs($closingBalance)) }}
+                    {{ $closingBalance > 0.01 ? 'Dr' : ($closingBalance < -0.01 ? 'Cr' : '') }}
                 </strong>
             </span>
         </div>
@@ -164,16 +164,39 @@
             </thead>
             <tbody>
 
-            {{-- Opening balance row --}}
-            @if($customer->opening_balance != 0)
-            <tr style="background:#fffbeb;">
-                <td style="font-size:12px;color:#6c757d;">Opening</td>
-                <td><em style="color:#6c757d;font-size:12px;">Opening / Carry-forward Balance</em></td>
+            {{-- Balance Brought Forward row (only in date-filtered view) --}}
+            @if(!$viewAll)
+            <tr style="background:#f9fafb;font-style:italic;">
+                <td style="font-size:12px;color:#6c757d;">B/F</td>
+                <td style="font-size:12px;color:#6c757d;">
+                    Balance brought forward
+                    @if($from !== now()->startOfYear()->toDateString())
+                    <span style="font-size:11px;">(as of {{ \Carbon\Carbon::parse($from)->subDay()->format('d M Y') }})</span>
+                    @endif
+                </td>
                 <td class="col-agent">—</td>
                 <td class="col-payment">—</td>
-                <td class="text-end">—</td>
-                <td class="text-end">—</td>
-                <td class="text-end fw-bold">{{ fmt_amount($customer->opening_balance) }}</td>
+                <td class="text-end">
+                    @if($balanceBroughtForward < -0.01)
+                    <span class="bal-pos">{{ fmt_amount(abs($balanceBroughtForward)) }}</span>
+                    @else —
+                    @endif
+                </td>
+                <td class="text-end">
+                    @if($balanceBroughtForward > 0.01)
+                    <span class="bal-neg">{{ fmt_amount(abs($balanceBroughtForward)) }}</span>
+                    @else —
+                    @endif
+                </td>
+                <td class="text-end fw-bold">
+                    @php $bbf = $balanceBroughtForward; @endphp
+                    <span class="{{ $bbf > 0.01 ? 'bal-neg' : ($bbf < -0.01 ? 'bal-pos' : 'bal-zero') }}">
+                        {{ fmt_amount(abs($bbf)) }}
+                    </span>
+                    <div style="font-size:9px;" class="{{ $bbf > 0.01 ? 'text-danger' : ($bbf < -0.01 ? 'text-success' : 'text-muted') }}">
+                        {{ $bbf > 0.01 ? 'Dr' : ($bbf < -0.01 ? 'Cr' : 'Nil') }}
+                    </div>
+                </td>
             </tr>
             @endif
 
@@ -231,14 +254,14 @@
             <tfoot style="background:#f9fafb;">
                 <tr>
                     <td id="tfoot-label-colspan" colspan="4" class="text-end fw-bold" style="font-size:13px;">Closing Balance</td>
-                    <td class="text-end fw-bold bal-pos">{{ fmt_amount($ledger->sum('credit')) }}</td>
-                    <td class="text-end fw-bold bal-neg">{{ fmt_amount($ledger->sum('debit')) }}</td>
+                    <td class="text-end fw-bold bal-pos">{{ fmt_amount($totalCredit) }}</td>
+                    <td class="text-end fw-bold bal-neg">{{ fmt_amount($totalDebit) }}</td>
                     <td class="text-end fw-bold">
-                        <span class="{{ $runningBalance > 0.01 ? 'bal-neg' : ($runningBalance < -0.01 ? 'bal-pos' : 'bal-zero') }}">
-                            {{ fmt_amount(abs($runningBalance)) }}
+                        <span class="{{ $closingBalance > 0.01 ? 'bal-neg' : ($closingBalance < -0.01 ? 'bal-pos' : 'bal-zero') }}">
+                            {{ fmt_amount(abs($closingBalance)) }}
                         </span>
-                        <div style="font-size:10px;" class="{{ $runningBalance > 0.01 ? 'text-danger' : ($runningBalance < -0.01 ? 'text-success' : 'text-muted') }}">
-                            {{ $runningBalance > 0.01 ? 'Dr' : ($runningBalance < -0.01 ? 'Cr' : 'Settled') }}
+                        <div style="font-size:10px;" class="{{ $closingBalance > 0.01 ? 'text-danger' : ($closingBalance < -0.01 ? 'text-success' : 'text-muted') }}">
+                            {{ $closingBalance > 0.01 ? 'Dr' : ($closingBalance < -0.01 ? 'Cr' : 'Settled') }}
                         </div>
                     </td>
                 </tr>
