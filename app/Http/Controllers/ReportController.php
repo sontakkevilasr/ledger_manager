@@ -187,8 +187,21 @@ class ReportController extends Controller
         $transactions = collect();
         $runningBalance = 0;
         $ledger         = collect();
+        $balanceBroughtForward = 0.0;
+        $totalCredit    = 0;
+        $totalDebit     = 0;
+        $closingBalance = 0;
 
         if ($customer) {
+            if (! $viewAll) {
+                // B/F = SUM of ALL transactions BEFORE $from date
+                $balanceBroughtForward = (float) Transaction::forCustomer($customer->id)
+                    ->where('transaction_date', '<', $from)
+                    ->whereNull('deleted_at')
+                    ->selectRaw('SUM(debit) - SUM(credit) as net')
+                    ->value('net');
+            }
+
             $txnQuery = Transaction::forCustomer($customer->id)
                 ->with(['paymentType', 'agent', 'createdBy'])
                 ->orderBy('is_opening', 'desc')
@@ -201,14 +214,18 @@ class ReportController extends Controller
 
             $transactions = $txnQuery->get();
 
-            // Dr opening = positive (customer owes), Cr opening = negative (we owe)
-            $openingSign    = ($customer->opening_balance_type ?? 'Dr') === 'Dr' ? 1 : -1;
-            $runningBalance = $openingSign * (float) $customer->opening_balance;
+            $runningBalance = $balanceBroughtForward;
 
             $ledger = $transactions->map(function ($txn) use (&$runningBalance) {
                 $runningBalance += ($txn->debit - $txn->credit); // debit increases balance, credit reduces it
                 return array_merge($txn->toArray(), ['running_balance' => round($runningBalance, 2)]);
             });
+
+            $totalCredit    = $transactions->where('is_opening', false)->sum('credit');
+            $totalDebit     = $transactions->where('is_opening', false)->sum('debit');
+            $closingBalance = $balanceBroughtForward
+                + $transactions->sum('debit')
+                - $transactions->sum('credit');
 
             ActivityLogger::log(
                 'viewed', 'reports',
@@ -221,7 +238,8 @@ class ReportController extends Controller
         $customers = Customer::active()->orderBy('customer_name')->pluck('customer_name', 'id');
 
         return view('reports.customer-ledger', compact(
-            'customers', 'customer', 'ledger', 'from', 'to', 'viewAll', 'runningBalance'
+            'customers', 'customer', 'ledger', 'from', 'to', 'viewAll', 'runningBalance',
+            'balanceBroughtForward', 'totalCredit', 'totalDebit', 'closingBalance'
         ));
     }
 
