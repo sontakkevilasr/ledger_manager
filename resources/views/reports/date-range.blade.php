@@ -57,10 +57,13 @@
     </div>
     <div class="col-6 col-md-3">
         <div class="stat-card text-center">
-            <div class="stat-label">Net Balance</div>
-            @php $net = $summary['total_balance']; @endphp
-            <div class="stat-value" style="font-size:20px;" class="{{ $net >= 0 ? 'bal-pos' : 'bal-neg' }}">
+            <div class="stat-label">Closing Balance</div>
+            @php $net = $summary['total_closing']; @endphp
+            <div class="stat-value" style="font-size:20px;" class="{{ $net > 0.01 ? 'bal-neg' : ($net < -0.01 ? 'bal-pos' : 'bal-zero') }}">
                 {{ fmt_amount(abs($net)) }}
+            </div>
+            <div style="font-size:10px;color:#6c757d;">
+                {{ $net > 0.01 ? 'Dr — To Collect' : ($net < -0.01 ? 'Cr — To Pay' : 'Settled') }}
             </div>
         </div>
     </div>
@@ -91,9 +94,10 @@
                     <th>Customer Name</th>
                     <th>City</th>
                     <th>Mobile</th>
+                    <th class="text-end">Opening Bal.</th>
                     <th class="text-end" style="color:#059669;">Credit</th>
                     <th class="text-end" style="color:#dc2626;">Debit</th>
-                    <th class="text-end">Balance</th>
+                    <th class="text-end">Closing Balance</th>
                     <th class="text-center">View</th>
                 </tr>
             </thead>
@@ -102,27 +106,36 @@
             <tr>
                 <td class="text-muted" style="font-size:11px;">{{ $i + 1 }}</td>
                 <td>
-                    <a href="{{ route('customers.show', $row->id) }}?from={{ $from }}&to={{ $to }}"
+                    <a href="{{ route('reports.customer-ledger') }}?customer_id={{ $row->id }}&from={{ $from }}&to={{ $to }}"
                        class="text-decoration-none fw-500">
                         {{ $row->customer_name }}
                     </a>
                 </td>
                 <td style="font-size:12px;color:#6c757d;">{{ $row->city ?? '—' }}</td>
                 <td style="font-size:12px;">{{ $row->mobile ?? '—' }}</td>
+                <td class="text-end" style="font-size:12px;">
+                    @php $ob = $row->opening_balance; @endphp
+                    <span class="{{ $ob > 0.01 ? 'bal-neg' : ($ob < -0.01 ? 'bal-pos' : 'bal-zero') }}">
+                        {{ fmt_amount(abs($ob)) }}
+                    </span>
+                    <span style="font-size:10px;" class="{{ $ob > 0.01 ? 'text-danger' : ($ob < -0.01 ? 'text-success' : 'text-muted') }}">
+                        {{ $ob > 0.01 ? 'Dr' : ($ob < -0.01 ? 'Cr' : '') }}
+                    </span>
+                </td>
                 <td class="text-end bal-pos">{{ fmt_amount($row->credit) }}</td>
                 <td class="text-end bal-neg">{{ fmt_amount($row->debit) }}</td>
                 <td class="text-end">
-                    @php $bal = $row->balance; @endphp
-                    <span class="fw-bold {{ $bal > 0.01 ? 'bal-pos' : ($bal < -0.01 ? 'bal-neg' : 'bal-zero') }}">
+                    @php $bal = $row->closing_balance; @endphp
+                    <span class="fw-bold {{ $bal > 0.01 ? 'bal-neg' : ($bal < -0.01 ? 'bal-pos' : 'bal-zero') }}">
                         {{ fmt_amount(abs($bal)) }}
                     </span>
                     <div style="font-size:10px;color:#6c757d;">
-                        {{ $bal > 0.01 ? 'To Collect' : ($bal < -0.01 ? 'To Pay' : 'Settled') }}
+                        {{ $bal > 0.01 ? 'Dr — To Collect' : ($bal < -0.01 ? 'Cr — To Pay' : 'Settled') }}
                     </div>
                 </td>
                 <td class="text-center">
-                    <a href="{{ route('customers.show', $row->id) }}?from={{ $from }}&to={{ $to }}"
-                       class="btn btn-sm btn-outline-primary" style="font-size:11px;">
+                    <a href="{{ route('reports.customer-ledger') }}?customer_id={{ $row->id }}&from={{ $from }}&to={{ $to }}"
+                       class="btn btn-sm btn-outline-primary" style="font-size:11px;" title="View how this balance was calculated">
                         <i class="bi bi-journal-text"></i>
                     </a>
                 </td>
@@ -132,11 +145,18 @@
             <tfoot style="background:#f9fafb;font-weight:600;">
                 <tr>
                     <td colspan="4" class="text-end" style="font-size:13px;">Grand Total</td>
+                    <td class="text-end">
+                        @php $tob = $summary['total_opening']; @endphp
+                        <span class="{{ $tob > 0.01 ? 'bal-neg' : ($tob < -0.01 ? 'bal-pos' : 'bal-zero') }}">
+                            {{ fmt_amount(abs($tob)) }}
+                        </span>
+                    </td>
                     <td class="text-end bal-pos">{{ fmt_amount($summary['total_credit']) }}</td>
                     <td class="text-end bal-neg">{{ fmt_amount($summary['total_debit']) }}</td>
                     <td class="text-end">
-                        <span class="{{ $summary['total_balance'] >= 0 ? 'bal-pos' : 'bal-neg' }}">
-                            {{ fmt_amount(abs($summary['total_balance'])) }}
+                        @php $tcl = $summary['total_closing']; @endphp
+                        <span class="{{ $tcl > 0.01 ? 'bal-neg' : ($tcl < -0.01 ? 'bal-pos' : 'bal-zero') }}">
+                            {{ fmt_amount(abs($tcl)) }}
                         </span>
                     </td>
                     <td></td>

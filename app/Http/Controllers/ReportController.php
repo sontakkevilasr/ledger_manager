@@ -136,10 +136,29 @@ class ReportController extends Controller
         //     'from' => 'required|date',
         //     'to'   => 'required|date|after_or_equal:from',
         // ]);
-        
-        // Group by customer, sum credit/debit in date range
+
+        // ── FORMULA (must match Customer Ledger report) ───────────────────
+        //
+        // opening_balance (B/F) = SUM(debit) - SUM(credit) of ALL of the
+        // customer's transactions strictly before $from. The customer's
+        // opening_balance/opening_balance_type is itself stored as an
+        // is_opening transaction row, so it's already included here —
+        // same formula as customerLedger()'s $balanceBroughtForward.
+        //
+        // closing_balance = opening_balance + period debit - period credit
+        //
+        // Positive = Dr (customer owes) → "To Collect"
+        // Negative = Cr (we owe customer) → "To Pay"
+        $openingSub = DB::table('transactions')
+            ->whereNull('deleted_at')
+            ->where('transaction_date', '<', $from)
+            ->selectRaw('customer_id, SUM(debit) - SUM(credit) as opening_balance')
+            ->groupBy('customer_id');
+
+        // Group by customer, sum credit/debit within the date range
         $results = DB::table('customers')
             ->join('transactions', 'customers.id', '=', 'transactions.customer_id')
+            ->leftJoinSub($openingSub, 'ob', 'ob.customer_id', '=', 'customers.id')
             ->whereNull('transactions.deleted_at')
             ->whereBetween('transactions.transaction_date', [$from, $to])
             ->select(
@@ -148,17 +167,19 @@ class ReportController extends Controller
                 'customers.city',
                 'customers.mobile'
             )
+            ->selectRaw('COALESCE(MAX(ob.opening_balance), 0) as opening_balance')
             ->selectRaw('SUM(transactions.credit) as credit, SUM(transactions.debit) as debit')
-            ->selectRaw('SUM(transactions.credit) - SUM(transactions.debit) as balance')
+            ->selectRaw('COALESCE(MAX(ob.opening_balance), 0) + SUM(transactions.debit) - SUM(transactions.credit) as closing_balance')
             ->groupBy('customers.id', 'customers.customer_name', 'customers.city', 'customers.mobile')
             ->orderBy('customers.customer_name')
             ->get();
 
         $summary = [
-            'total_credit' => $results->sum('credit'),
-            'total_debit'  => $results->sum('debit'),
-            'total_balance'=> $results->sum('balance'),
-            'count'        => $results->count(),
+            'total_credit'  => $results->sum('credit'),
+            'total_debit'   => $results->sum('debit'),
+            'total_opening' => $results->sum('opening_balance'),
+            'total_closing' => $results->sum('closing_balance'),
+            'count'         => $results->count(),
         ];
 
         ActivityLogger::log('viewed', 'reports', description: "Viewed date range report: {$from} to {$to}");
