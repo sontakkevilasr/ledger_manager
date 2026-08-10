@@ -8,23 +8,29 @@ use Illuminate\Support\Facades\DB;
 class OldYearBalTransactions extends Command
 {
     protected $signature   = 'app:old-year-bal {action : archive or restore}
+                                {--year=2025 : Year or comma-separated years to target}
                                 {--force : Skip confirmation prompt}';
-    protected $description = 'Archive (soft-delete) or restore transactions matching "old year bal" on Jan 1.';
+    protected $description = 'Archive (soft-delete) or restore transactions matching "old year bal" on Jan 1 for specified year(s).';
 
     public function handle(): int
     {
         $action = strtolower($this->argument('action'));
+        $years = $this->parseYears();
 
         if (! in_array($action, ['archive', 'restore'])) {
             $this->error('  Invalid action. Use: archive  or  restore');
             return self::FAILURE;
         }
 
-        return $action === 'archive' ? $this->archive() : $this->restore();
+        if ($years === false) {
+            return self::FAILURE;
+        }
+
+        return $action === 'archive' ? $this->archive($years) : $this->restore($years);
     }
 
     // ── Archive (soft-delete) ─────────────────────────────────
-    private function archive(): int
+    private function archive(array $years): int
     {
         $this->info('');
         $this->info('╔══════════════════════════════════════════════╗');
@@ -32,7 +38,7 @@ class OldYearBalTransactions extends Command
         $this->info('╚══════════════════════════════════════════════╝');
         $this->info('');
 
-        $rows = $this->matchingRows()->get();
+        $rows = $this->matchingRows($years)->get();
 
         if ($rows->isEmpty()) {
             $this->info('  No matching transactions found. Nothing to archive.');
@@ -65,7 +71,7 @@ class OldYearBalTransactions extends Command
             }
         }
 
-        $count = $this->matchingRows()->update(['deleted_at' => now()]);
+        $count = $this->matchingRows($years)->update(['deleted_at' => now()]);
 
         $this->info('');
         $this->info("  ✓ {$count} transaction(s) archived (soft-deleted).");
@@ -76,7 +82,7 @@ class OldYearBalTransactions extends Command
     }
 
     // ── Restore (undo soft-delete) ────────────────────────────
-    private function restore(): int
+    private function restore(array $years): int
     {
         $this->info('');
         $this->info('╔══════════════════════════════════════════════╗');
@@ -84,7 +90,7 @@ class OldYearBalTransactions extends Command
         $this->info('╚══════════════════════════════════════════════╝');
         $this->info('');
 
-        $rows = $this->matchingRows(onlyTrashed: true)->get();
+        $rows = $this->matchingRows($years, onlyTrashed: true)->get();
 
         if ($rows->isEmpty()) {
             $this->info('  No archived transactions found matching the criteria. Nothing to restore.');
@@ -114,7 +120,7 @@ class OldYearBalTransactions extends Command
             }
         }
 
-        $count = $this->matchingRows(onlyTrashed: true)->update(['deleted_at' => null]);
+        $count = $this->matchingRows($years, onlyTrashed: true)->update(['deleted_at' => null]);
 
         $this->info('');
         $this->info("  ✓ {$count} transaction(s) restored.");
@@ -124,12 +130,13 @@ class OldYearBalTransactions extends Command
     }
 
     // ── Shared query builder ──────────────────────────────────
-    private function matchingRows(bool $onlyTrashed = false)
+    private function matchingRows(array $years, bool $onlyTrashed = false)
     {
         $query = DB::table('transactions')
             ->where('description', 'like', '%old year bal%')
             ->whereMonth('transaction_date', 1)
-            ->whereDay('transaction_date', 1);
+            ->whereDay('transaction_date', 1)
+            ->whereIn(DB::raw('YEAR(transaction_date)'), $years);
 
         if ($onlyTrashed) {
             $query->whereNotNull('deleted_at');
@@ -138,5 +145,29 @@ class OldYearBalTransactions extends Command
         }
 
         return $query;
+    }
+
+    private function parseYears()
+    {
+        $yearOption = $this->option('year');
+        $yearStrings = array_filter(array_map('trim', explode(',', $yearOption)));
+
+        if (empty($yearStrings)) {
+            $this->error('  Invalid year value. Provide a year or comma-separated years.');
+            return false;
+        }
+
+        $years = array_unique(array_map(function ($year) {
+            return (int) $year;
+        }, $yearStrings));
+
+        foreach ($years as $year) {
+            if ($year <= 0) {
+                $this->error('  Invalid year value. Provide positive numeric year(s).');
+                return false;
+            }
+        }
+
+        return $years;
     }
 }
